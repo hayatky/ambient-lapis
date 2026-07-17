@@ -257,7 +257,9 @@ sequenceDiagram
 | 条件 | 動作 | エラーコード |
 | --- | --- | --- |
 | 2xxかつ正常JSON | 検証して保存 | なし |
-| 400 / 401 / 403 / 404 | 同一収集内では再試行しない | `client_error` / `unauthorized` / `target_not_found` |
+| HTTP 400 / 404 | 同一収集内では再試行しない | `client_error` |
+| HTTP 401 / 403 | 同一収集内では再試行しない | `unauthorized` |
+| 2xxの正常JSON内に設定IDがない | 保存せず次回収集で再確認する | `target_not_found` |
 | 429 | リセット時刻を記録し、同一収集内では再試行しない | `rate_limited` |
 | 500〜599 | 5秒、15秒のジッター付き待機後に最大2回再試行 | `upstream_error` |
 | タイムアウト / 一時的通信エラー | 5秒後に1回だけ再試行 | `timeout` / `network_error` |
@@ -1001,6 +1003,7 @@ services:
   remo-api:
     image: ghcr.io/example/ambient-lapis-api:${APP_VERSION}
     restart: unless-stopped
+    stop_grace_period: 35s
     environment:
       NATURE_REMO_TOKEN_FILE: /run/secrets/nature_remo_token
       NATURE_REMO_DEVICE_ID: ${NATURE_REMO_DEVICE_ID}

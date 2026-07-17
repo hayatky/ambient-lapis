@@ -1,0 +1,50 @@
+services:
+  remo-api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: ambient-lapis-api:${APP_VERSION:-local}
+    restart: unless-stopped
+    stop_grace_period: 35s
+    environment:
+      NATURE_REMO_TOKEN_FILE: /run/secrets/nature_remo_token
+      NATURE_REMO_DEVICE_ID: ${NATURE_REMO_DEVICE_ID}
+      NATURE_REMO_APPLIANCE_ID: ${NATURE_REMO_APPLIANCE_ID}
+      DATABASE_PATH: /data/ambient-lapis.sqlite3
+      BACKUP_DIR: /backups
+      POLL_INTERVAL: ${POLL_INTERVAL:-5m}
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-15s}
+      STALE_AFTER: ${STALE_AFTER:-}
+      LISTEN_ADDR: :8080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      TZ: Asia/Tokyo
+    secrets:
+      - nature_remo_token
+    volumes:
+      - type: bind
+        source: ${AMBIENT_LAPIS_DATA_DIR}
+        target: /data
+      - type: bind
+        source: ${AMBIENT_LAPIS_BACKUP_DIR}
+        target: /backups
+    healthcheck:
+      test: ["CMD", "/app/ambient-lapis", "healthcheck", "--url", "http://127.0.0.1:8080/readyz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+secrets:
+  nature_remo_token:
+    file: ./secrets/nature_remo_token

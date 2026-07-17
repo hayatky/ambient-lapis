@@ -1,0 +1,18 @@
+[
+  {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "type": "AC",
+    "nickname": "Synthetic Aircon",
+    "settings": {
+      "button": "",
+      "mode": "cool",
+      "temp": "26.0",
+      "temp_unit": "c",
+      "vol": "auto",
+      "dir": "swing",
+      "dirh": "center",
+      "updated_at": "2026-07-18T02:59:00Z",
+      "extra": {"synthetic": "value"}
+    }
+  }
+]

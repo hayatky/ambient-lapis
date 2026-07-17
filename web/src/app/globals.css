@@ -15,6 +15,7 @@
   --success: #28735d;
   --warning: #9a6518;
   --danger: #b04444;
+  --shadow-card: 0 12px 36px rgba(31, 50, 73, 0.08);
   color-scheme: light;
 }
 
@@ -32,6 +33,7 @@
   --success: #58b497;
   --warning: #e4af55;
   --danger: #f07b7b;
+  --shadow-card: none;
   color-scheme: dark;
 }
 
@@ -50,7 +52,29 @@
     --success: #58b497;
     --warning: #e4af55;
     --danger: #f07b7b;
+    --shadow-card: none;
     color-scheme: dark;
+  }
+}
+
+.surface-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  box-shadow: var(--shadow-card);
+}
+
+.metric-figure {
+  font-size: clamp(3.5rem, 10vw, 6.5rem);
+  font-weight: 500;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 1024px) {
+  .metric-figure {
+    font-size: clamp(3.5rem, 5.5vw, 6.5rem);
   }
 }
 

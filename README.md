@@ -6,7 +6,7 @@ Nature Remo Lapisで計測した自室の温度・湿度と、Nature Remoが認�
 
 ## Status
 
-Goバックエンドの初期版実装が完了しています。設定、Nature API収集、SQLite、内部API、バックアップ、Graceful Shutdown、コンテナ運用を`backend/`にまとめています。Next.jsダッシュボードは`web/`で基盤とAPI接続層から実装を進めています。
+Goバックエンドの初期版実装が完了しています。設定、Nature API収集、SQLite、内部API、バックアップ、Graceful Shutdown、コンテナ運用を`backend/`にまとめています。Next.jsダッシュボードも`web/`で初期版UIまで実装済みです。現在値、エアコンのNature Remo認識状態、EChartsによる履歴グラフ、期間選択、日次サマリー、ライト / ダークテーマ、主要なエラー・警告状態を含みます。
 
 ## Architecture
 
@@ -50,6 +50,45 @@ flowchart LR
 - Nature APIトークンをブラウザへ公開しない
 - エアコン状態は「Nature Remo認識状態」として正直に表現する
 - 既製の管理画面らしさを避け、余白、文字、色、動きまで丁寧に設計する
+
+## Next.jsダッシュボードのローカル実行
+
+Node.js 24.18.0とnpmを使用します。`REMO_API_BASE_URL`はサーバー側だけで使用し、ブラウザへは公開しません。
+
+Goバックエンドへ接続する場合:
+
+```bash
+cd web
+npm ci
+REMO_API_BASE_URL=http://127.0.0.1:8080 npm run dev
+```
+
+実バックエンドやNature APIに依存せずUIを確認する場合は、fixtureベースのモックGo APIサーバーを使用します。全データは架空値です。
+
+```bash
+cd web
+npm run mock-api     # 127.0.0.1:8090でモックGo APIを起動
+npm run dev:mock     # 別ターミナルで、モックへ接続するnext dev
+```
+
+モックのシナリオ(正常、収集停止、Remoオフライン、古い値、不明、エラーなど)は次で切り替えられます。
+
+```bash
+curl -X POST http://127.0.0.1:8090/__scenario -d '{"name":"collectionStopped"}'
+curl http://127.0.0.1:8090/__scenario   # 現在のシナリオと一覧
+```
+
+検証コマンド:
+
+```bash
+cd web
+npm run format:check
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run test:e2e     # Playwright。モックGo API + next devを自動起動
+```
 
 ## Goバックエンドのローカル実行
 

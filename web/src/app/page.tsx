@@ -1,21 +1,52 @@
-export default function HomePage() {
-  return (
-    <main className="mx-auto flex min-h-screen max-w-7xl items-center px-4 py-16 sm:px-6 lg:px-8">
-      <section
-        aria-labelledby="page-title"
-        className="w-full rounded-[20px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-[0_12px_36px_rgba(31,50,73,0.08)] sm:p-8"
-      >
-        <p className="m-0 text-sm font-medium text-[var(--accent-lapis)]">
-          Ambient Lapis
-        </p>
-        <h1 id="page-title" className="mt-2 mb-0 text-xl font-semibold">
-          ダッシュボードの基盤を準備しています
-        </h1>
-        <p className="mt-3 mb-0 max-w-2xl text-[var(--text-secondary)]">
-          Nature Remo Lapisの温湿度と、エアコンのNature
-          Remo認識状態を静かに見渡せる画面を構築中です。
-        </p>
-      </section>
-    </main>
-  );
+import type { ReactElement } from "react";
+
+import { Dashboard } from "@/components/dashboard/dashboard";
+import type { DashboardInitialData } from "@/hooks/use-dashboard-data";
+import { serverApi } from "@/lib/api/server-client";
+import { resolvePresetPeriod } from "@/lib/period";
+
+export const dynamic = "force-dynamic";
+
+function fulfilled<T>(result: PromiseSettledResult<T>): T | null {
+  return result.status === "fulfilled" ? result.value : null;
+}
+
+// Initial render fetches everything on the server (§9.1): status, current
+// values, the last 24 hours of history and the daily summary. Failures
+// never prevent the page shell from rendering; the client retries.
+export default async function HomePage(): Promise<ReactElement> {
+  const now = new Date();
+  const period = resolvePresetPeriod("24h", now);
+  const seriesQuery = {
+    from: period.series.fromIso,
+    to: period.series.toIso,
+  };
+
+  const [status, current, environmentSeries, airconSeries, dailySummary] =
+    await Promise.allSettled([
+      serverApi.status(),
+      serverApi.current(),
+      serverApi.environmentSeries({ ...seriesQuery, resolution: "auto" }),
+      serverApi.airconSeries(seriesQuery),
+      serverApi.dailySummary({
+        from: period.dailySummary.fromIso,
+        to: period.dailySummary.toIso,
+      }),
+    ]);
+
+  const initial: DashboardInitialData = {
+    status: fulfilled(status)?.data ?? null,
+    current: fulfilled(current)?.data ?? null,
+    currentFailed:
+      status.status === "rejected" || current.status === "rejected",
+    environmentSeries: fulfilled(environmentSeries)?.data ?? null,
+    airconSeries: fulfilled(airconSeries)?.data ?? null,
+    dailySummary: fulfilled(dailySummary)?.data ?? null,
+    historyFailed:
+      environmentSeries.status === "rejected" ||
+      airconSeries.status === "rejected" ||
+      dailySummary.status === "rejected",
+  };
+
+  return <Dashboard initial={initial} serverNowIso={now.toISOString()} />;
 }

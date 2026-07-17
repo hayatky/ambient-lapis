@@ -33,3 +33,16 @@ export function toDisplayTimestamp(iso: string, now: Date): DisplayTimestamp {
 export function formatDate(date: string): string {
   return dateFormatter.format(new Date(`${date}T00:00:00+09:00`));
 }
+
+export function formatAge(ageSeconds: number): string {
+  if (ageSeconds < 60) {
+    return "1分未満前";
+  }
+  if (ageSeconds < 3_600) {
+    return `${Math.floor(ageSeconds / 60)}分前`;
+  }
+  if (ageSeconds < 86_400) {
+    return `${Math.floor(ageSeconds / 3_600)}時間前`;
+  }
+  return `${Math.floor(ageSeconds / 86_400)}日前`;
+}

@@ -377,7 +377,10 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
       {
         text: "エアコン認識",
         left: 0,
-        top: layout.ribbonTop + 1,
+        // Keep the label in the gap above the ribbon so the ribbon can use
+        // the same horizontal plot bounds as the temperature and humidity
+        // grids without overlapping the label.
+        top: layout.ribbonTop - 15,
         textStyle: {
           fontSize: 10,
           fontWeight: 500,
@@ -401,7 +404,7 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
         containLabel: false,
       },
       {
-        left: GRID_LEFT + 66,
+        left: GRID_LEFT,
         right: GRID_RIGHT,
         top: layout.ribbonTop,
         height: layout.ribbonHeight,

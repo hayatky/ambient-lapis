@@ -81,6 +81,15 @@ describe("buildChartOption", () => {
     }
   });
 
+  it("uses identical horizontal plot bounds for every grid", () => {
+    const option = build();
+    const grids = option.grid as { left: number; right: number }[];
+    expect(grids).toHaveLength(3);
+    const horizontalBounds = grids.map(({ left, right }) => ({ left, right }));
+    expect(horizontalBounds[1]).toEqual(horizontalBounds[0]);
+    expect(horizontalBounds[2]).toEqual(horizontalBounds[0]);
+  });
+
   it("never connects nulls and keeps gap points null", () => {
     const option = build();
     const [temperature, humidity] = seriesOf(option);

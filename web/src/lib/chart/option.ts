@@ -28,6 +28,18 @@ export interface ChartBuildInput {
   rangeToMs: number;
   // Rendered container height; the grid layout is computed from it.
   heightPx: number;
+  // Dashboard remains the default so existing callers and visual tests keep
+  // their current layout. Kiosk uses viewport-aware safe areas.
+  variant?: ChartVariant;
+  widthPx?: number;
+}
+
+export type ChartVariant = "dashboard" | "kiosk";
+
+export interface EnvironmentChartSelection {
+  epochMs: number;
+  point: EnvironmentChartPointViewModel | null;
+  airconSegment: AirconSegmentViewModel | null;
 }
 
 const HOUR_MS = 3_600_000;
@@ -109,13 +121,18 @@ export function targetTemperatureLineData(
   return data;
 }
 
-interface PanelLayout {
+export interface PanelLayout {
   temperatureTop: number;
   temperatureHeight: number;
   humidityTop: number;
   humidityHeight: number;
   ribbonTop: number;
   ribbonHeight: number;
+}
+
+interface PlotBounds {
+  left: number;
+  right: number;
 }
 
 export function computePanelLayout(heightPx: number): PanelLayout {
@@ -138,6 +155,62 @@ export function computePanelLayout(heightPx: number): PanelLayout {
     ribbonTop: top + temperatureHeight + gap1 + humidityHeight + gap2,
     ribbonHeight,
   };
+}
+
+export function computeKioskPanelLayout(
+  heightPx: number,
+  widthPx: number,
+): PanelLayout {
+  // The current values and Remo-recognized AC state share the top overlay.
+  // Its measured maximum lower edge is 234px on the supported viewports.
+  const top = 252;
+  const bottom = widthPx < 600 ? 160 : 96;
+  const gap1 = widthPx < 600 ? 26 : 38;
+  const gap2 = 12;
+  const ribbonHeight = widthPx < 600 ? 12 : 16;
+  const available = Math.max(
+    180,
+    heightPx - top - bottom - gap1 - gap2 - ribbonHeight,
+  );
+  const temperatureHeight = Math.round(available * 0.62);
+  const humidityHeight = available - temperatureHeight;
+  return {
+    temperatureTop: top,
+    temperatureHeight,
+    humidityTop: top + temperatureHeight + gap1,
+    humidityHeight,
+    ribbonTop: top + temperatureHeight + gap1 + humidityHeight + gap2,
+    ribbonHeight,
+  };
+}
+
+export function selectNearestChartData(
+  epochMs: number,
+  points: EnvironmentChartPointViewModel[],
+  airconSegments: AirconSegmentViewModel[],
+): EnvironmentChartSelection {
+  let point: EnvironmentChartPointViewModel | null = null;
+  let distance = Infinity;
+  for (const candidate of points) {
+    const candidateDistance = Math.abs(candidate.time.epochMs - epochMs);
+    if (
+      candidateDistance < distance ||
+      (candidateDistance === distance &&
+        point !== null &&
+        candidate.time.epochMs < point.time.epochMs)
+    ) {
+      point = candidate;
+      distance = candidateDistance;
+    }
+  }
+  const selectedEpochMs = point?.time.epochMs ?? epochMs;
+  const airconSegment =
+    airconSegments.find(
+      (candidate) =>
+        candidate.from.epochMs <= selectedEpochMs &&
+        selectedEpochMs < candidate.to.epochMs,
+    ) ?? null;
+  return { epochMs: selectedEpochMs, point, airconSegment };
 }
 
 // Humidity axis: data-driven extent snapped to 10s so a typical indoor
@@ -190,8 +263,17 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     rangeToMs,
     heightPx,
   } = input;
+  const variant = input.variant ?? "dashboard";
+  const widthPx = input.widthPx ?? 1200;
   const points = series.points;
-  const layout = computePanelLayout(heightPx);
+  const layout =
+    variant === "kiosk"
+      ? computeKioskPanelLayout(heightPx, widthPx)
+      : computePanelLayout(heightPx);
+  const bounds: PlotBounds =
+    variant === "kiosk"
+      ? { left: widthPx < 600 ? 28 : 52, right: widthPx < 600 ? 18 : 36 }
+      : { left: GRID_LEFT, right: GRID_RIGHT };
   const span = rangeToMs - rangeFromMs;
   const pointByTime = new Map<number, EnvironmentChartPointViewModel>();
   for (const point of points) {
@@ -229,6 +311,11 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
 
   const humidityBounds = humidityAxisBounds(points);
   const targetTemperatureColor = withAlpha(tokens.inkMuted, 0.72);
+  const pointerLineStyle = {
+    color: tokens.inkMuted,
+    opacity: variant === "kiosk" ? 0.82 : 0.45,
+    width: variant === "kiosk" ? 1.5 : 1,
+  };
 
   const temperatureSeries: SeriesOption = {
     name: "温度",
@@ -239,9 +326,14 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     symbol: "circle",
     symbolSize: 0,
     connectNulls: false,
-    lineStyle: { color: tokens.temperature, width: 2 },
+    lineStyle: {
+      color: tokens.temperature,
+      width: variant === "kiosk" ? 2.5 : 2,
+    },
     itemStyle: { color: tokens.temperature },
-    areaStyle: { color: withAlpha(tokens.temperature, 0.1) },
+    areaStyle: {
+      color: withAlpha(tokens.temperature, variant === "kiosk" ? 0.14 : 0.1),
+    },
     emphasis: { disabled: true },
     data: lineData(points, "temperature"),
     z: 3,
@@ -256,9 +348,14 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     symbol: "circle",
     symbolSize: 0,
     connectNulls: false,
-    lineStyle: { color: tokens.humidity, width: 2 },
+    lineStyle: {
+      color: tokens.humidity,
+      width: variant === "kiosk" ? 2.25 : 2,
+    },
     itemStyle: { color: tokens.humidity },
-    areaStyle: { color: withAlpha(tokens.humidity, 0.1) },
+    areaStyle: {
+      color: withAlpha(tokens.humidity, variant === "kiosk" ? 0.12 : 0.1),
+    },
     emphasis: { disabled: true },
     data: lineData(points, "humidity"),
     z: 3,
@@ -342,70 +439,73 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     animationEasing: "quadraticOut",
     axisPointer: {
       link: [{ xAxisIndex: "all" }],
-      lineStyle: { color: tokens.inkMuted, opacity: 0.45, width: 1 },
+      lineStyle: pointerLineStyle,
     },
-    title: [
-      {
-        text: `{key|—} 室温 {unit|°C}  {target|┄} Nature Remo認識設定温度`,
-        left: 0,
-        top: 0,
-        textStyle: {
-          fontSize: 12,
-          fontWeight: 500,
-          color: tokens.inkMuted,
-          rich: {
-            key: { color: tokens.temperature, fontWeight: 700 },
-            target: { color: targetTemperatureColor, fontWeight: 700 },
-            unit: { color: tokens.inkMuted, fontSize: 11 },
-          },
-        },
-      },
-      {
-        text: `{key|—} 湿度 {unit|%}`,
-        left: 0,
-        top: layout.humidityTop - 26,
-        textStyle: {
-          fontSize: 12,
-          fontWeight: 500,
-          color: tokens.inkMuted,
-          rich: {
-            key: { color: tokens.humidity, fontWeight: 700 },
-            unit: { color: tokens.inkMuted, fontSize: 11 },
-          },
-        },
-      },
-      {
-        text: "エアコン認識",
-        left: 0,
-        // Keep the label in the gap above the ribbon so the ribbon can use
-        // the same horizontal plot bounds as the temperature and humidity
-        // grids without overlapping the label.
-        top: layout.ribbonTop - 15,
-        textStyle: {
-          fontSize: 10,
-          fontWeight: 500,
-          color: tokens.inkMuted,
-        },
-      },
-    ],
+    title:
+      variant === "kiosk"
+        ? []
+        : [
+            {
+              text: `{key|—} 室温 {unit|°C}  {target|┄} Nature Remo認識設定温度`,
+              left: 0,
+              top: 0,
+              textStyle: {
+                fontSize: 12,
+                fontWeight: 500,
+                color: tokens.inkMuted,
+                rich: {
+                  key: { color: tokens.temperature, fontWeight: 700 },
+                  target: { color: targetTemperatureColor, fontWeight: 700 },
+                  unit: { color: tokens.inkMuted, fontSize: 11 },
+                },
+              },
+            },
+            {
+              text: `{key|—} 湿度 {unit|%}`,
+              left: 0,
+              top: layout.humidityTop - 26,
+              textStyle: {
+                fontSize: 12,
+                fontWeight: 500,
+                color: tokens.inkMuted,
+                rich: {
+                  key: { color: tokens.humidity, fontWeight: 700 },
+                  unit: { color: tokens.inkMuted, fontSize: 11 },
+                },
+              },
+            },
+            {
+              text: "エアコン認識",
+              left: 0,
+              // Keep the label in the gap above the ribbon so the ribbon can use
+              // the same horizontal plot bounds as the temperature and humidity
+              // grids without overlapping the label.
+              top: layout.ribbonTop - 15,
+              textStyle: {
+                fontSize: 10,
+                fontWeight: 500,
+                color: tokens.inkMuted,
+              },
+            },
+          ],
     grid: [
       {
-        left: GRID_LEFT,
-        right: GRID_RIGHT,
+        left: bounds.left,
+        right: bounds.right,
         top: layout.temperatureTop + 14,
         height: layout.temperatureHeight,
         containLabel: false,
       },
       {
-        left: GRID_LEFT,
-        right: GRID_RIGHT,
+        left: bounds.left,
+        right: bounds.right,
         top: layout.humidityTop,
         height: layout.humidityHeight,
         containLabel: false,
       },
       {
-        left: GRID_LEFT,
-        right: GRID_RIGHT,
+        left: bounds.left,
+        right: bounds.right,
         top: layout.ribbonTop,
         height: layout.ribbonHeight,
         containLabel: false,
@@ -462,6 +562,7 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     tooltip: {
       trigger: "axis",
       triggerOn: pointerType === "fine" ? "mousemove" : "click",
+      axisPointer: { type: "line", lineStyle: pointerLineStyle },
       confine: true,
       backgroundColor: tokens.raised,
       borderColor: tokens.hairline,

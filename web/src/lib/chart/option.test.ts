@@ -3,8 +3,10 @@ import { fixtureScenarios } from "@/test/fixtures";
 
 import {
   buildChartOption,
+  computeKioskPanelLayout,
   computePanelLayout,
   humidityAxisBounds,
+  selectNearestChartData,
   summarizeSeries,
   targetTemperatureLineData,
 } from "./option";
@@ -208,6 +210,112 @@ describe("computePanelLayout", () => {
   it("never collapses below a minimum plot area", () => {
     const layout = computePanelLayout(100);
     expect(layout.temperatureHeight + layout.humidityHeight).toBe(120);
+  });
+});
+
+describe("kiosk chart variant", () => {
+  it("uses viewport-safe vertical space and aligned independent grids", () => {
+    const option = build({ variant: "kiosk", widthPx: 390, heightPx: 844 });
+    const grids = option.grid as {
+      left: number;
+      right: number;
+      top: number;
+      height: number;
+    }[];
+    expect(grids).toHaveLength(3);
+    expect(grids[0]?.top).toBe(266);
+    expect(grids.map(({ left, right }) => ({ left, right }))).toEqual([
+      { left: 28, right: 18 },
+      { left: 28, right: 18 },
+      { left: 28, right: 18 },
+    ]);
+    const ribbon = grids[2];
+    expect((ribbon?.top ?? 0) + (ribbon?.height ?? 0)).toBeLessThanOrEqual(
+      844 - 160,
+    );
+    expect(option.title).toEqual([]);
+  });
+
+  it("starts below the full top overlay at every supported viewport", () => {
+    const compact = computeKioskPanelLayout(844, 390);
+    const tablet = computeKioskPanelLayout(1024, 768);
+    const desktop = computeKioskPanelLayout(900, 1440);
+    expect(compact.temperatureTop).toBe(252);
+    expect(tablet.temperatureTop).toBe(252);
+    expect(desktop.temperatureTop).toBe(252);
+    expect(compact.temperatureHeight).toBeGreaterThan(compact.humidityHeight);
+  });
+
+  it("uses a stronger linked crosshair only in kiosk mode", () => {
+    const dashboardPointer = build().axisPointer as {
+      lineStyle: { opacity: number; width: number };
+    };
+    const kiosk = build({ variant: "kiosk" });
+    const kioskPointer = kiosk.axisPointer as {
+      lineStyle: { opacity: number; width: number };
+    };
+    const kioskTooltip = kiosk.tooltip as {
+      axisPointer: { lineStyle: { opacity: number; width: number } };
+    };
+    expect(dashboardPointer.lineStyle).toMatchObject({
+      opacity: 0.45,
+      width: 1,
+    });
+    expect(kioskPointer.lineStyle).toMatchObject({ opacity: 0.82, width: 1.5 });
+    expect(kioskTooltip.axisPointer.lineStyle).toMatchObject({
+      opacity: 0.82,
+      width: 1.5,
+    });
+  });
+
+  it("preserves target-temperature and ribbon honesty rules", () => {
+    const option = build({ variant: "kiosk", widthPx: 1440, heightPx: 900 });
+    const target = seriesOf(option)[2];
+    const ribbon = seriesOf(option)[3] as unknown as {
+      data: { value: [number, number, number] }[];
+    };
+    expect(target?.connectNulls).toBe(false);
+    expect(target?.data).toContainEqual([
+      Date.parse("2026-07-18T12:30:00.000Z"),
+      null,
+    ]);
+    expect(ribbon.data).toHaveLength(1);
+  });
+});
+
+describe("selectNearestChartData", () => {
+  it("selects the nearest environmental point and its aircon interval", () => {
+    const selected = selectNearestChartData(
+      Date.parse("2026-07-18T12:24:00.000Z"),
+      rawSeries.points,
+      segments,
+    );
+    expect(selected.epochMs).toBe(Date.parse("2026-07-18T12:25:00.000Z"));
+    expect(selected.point?.temperature.value).toBe(26.1);
+    expect(selected.point?.remoOnlineState).toBe("online");
+    expect(selected.airconSegment).toMatchObject({
+      state: "on",
+      targetTemperatureC: 26,
+    });
+  });
+
+  it("keeps a gap point and missing interval explicit", () => {
+    const selected = selectNearestChartData(
+      Date.parse("2026-07-18T12:30:00.000Z"),
+      rawSeries.points,
+      [],
+    );
+    expect(selected.point?.gap).toBe(true);
+    expect(selected.airconSegment).toBeNull();
+  });
+
+  it("returns the requested time with null data when the series is empty", () => {
+    const epochMs = Date.parse("2026-07-18T12:30:00.000Z");
+    expect(selectNearestChartData(epochMs, [], [])).toEqual({
+      epochMs,
+      point: null,
+      airconSegment: null,
+    });
   });
 });
 

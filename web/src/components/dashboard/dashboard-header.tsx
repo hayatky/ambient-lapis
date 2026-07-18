@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import Link from "next/link";
 
 import { ThemeToggle } from "./theme-toggle";
 
@@ -29,7 +30,15 @@ export function DashboardHeader({ now }: DashboardHeaderProps): ReactElement {
         {headerDateFormatter.format(now)}
       </p>
       <div className="ml-auto">
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <Link
+            href="/kiosk"
+            className="min-h-[44px] content-center text-[0.8125rem] font-medium text-[var(--ink-secondary)] no-underline transition-colors hover:text-[var(--ink)]"
+          >
+            キオスク表示
+          </Link>
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

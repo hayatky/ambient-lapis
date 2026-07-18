@@ -101,6 +101,57 @@ a {
   outline-offset: 3px;
 }
 
+.kiosk-surface {
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--raised);
+}
+
+.kiosk-control,
+.kiosk-text-button {
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+}
+
+.kiosk-control {
+  padding-inline: 0.58rem;
+  border-radius: 9px;
+}
+
+.kiosk-control:hover,
+.kiosk-text-button:hover,
+.kiosk-control-active {
+  color: var(--ink);
+}
+
+.kiosk-control-active {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.kiosk-text-button {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.kiosk-danger::before {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 40;
+  height: 2px;
+  content: "";
+  background: var(--danger);
+}
+
 /* Tracked, terse Japanese section labels — the folio's running heads. */
 .section-label {
   font-size: 0.75rem;

@@ -348,7 +348,7 @@ UIの表示候補:
 ```yaml
 services:
   remo-api:
-    image: ghcr.io/example/remo-api:latest
+    image: ambient-lapis-api:${APP_VERSION:-local}
     restart: unless-stopped
     environment:
       NATURE_REMO_TOKEN_FILE: /run/secrets/nature_remo_token
@@ -366,7 +366,7 @@ services:
       retries: 3
 
   web:
-    image: ghcr.io/example/remo-dashboard:latest
+    image: ambient-lapis-web:${APP_VERSION:-local}
     restart: unless-stopped
     environment:
       REMO_API_BASE_URL: http://remo-api:8080
@@ -395,7 +395,7 @@ Compose standaloneの`secrets`は暗号化された秘密管理基盤ではな�
 - CPUとRAMに余裕がある。
 - SQLiteデータとバックアップをNASのローカルストレージへ置ける。
 
-NAS上ではイメージをビルドせず、MacまたはCIでマルチアーキテクチャイメージを作成し、NASはpullして実行するだけにする。
+NAS上ではイメージをビルドせず、Mac上でSynology向け`linux/amd64`イメージを作成してtarで搬入し、NASでは`docker load`後にローカルイメージを実行する。
 
 ### Hyper-V Ubuntuを選ぶ条件
 

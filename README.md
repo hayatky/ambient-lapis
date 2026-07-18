@@ -53,13 +53,22 @@ flowchart LR
 
 ## Next.jsダッシュボードのローカル実行
 
-Node.js 24.18.0とnpmを使用します(`fnm`利用時はリポジトリ内のバージョン指定を読み込んでください)。`REMO_API_BASE_URL`はサーバー側だけで使用し、`NEXT_PUBLIC_`変数には設定しません。PlaywrightのChromiumが未導入の場合は、事前に`npx playwright install chromium`を実行してください。
+Node.js 24.18.0とnpmを使用します。主要なnpm scriptは実行時のNode.jsが24.18.0でない場合に停止します。`REMO_API_BASE_URL`はサーバー側だけで使用し、`NEXT_PUBLIC_`変数には設定しません。PlaywrightのChromiumが未導入の場合は、事前に`npx playwright install chromium`を実行してください。
+
+最初にNode.jsを切り替えて依存を導入します。新しいターミナルを開くたびに、npm scriptより先に`fnm use 24.18.0`を実行してください。
+
+```bash
+cd web
+fnm use 24.18.0
+node --version        # v24.18.0
+npm ci
+```
 
 Goバックエンドへ接続する場合:
 
 ```bash
 cd web
-npm ci
+fnm use 24.18.0
 REMO_API_BASE_URL=http://127.0.0.1:8080 npm run dev
 ```
 
@@ -67,8 +76,16 @@ REMO_API_BASE_URL=http://127.0.0.1:8080 npm run dev
 
 ```bash
 cd web
+fnm use 24.18.0
 npm run mock-api     # 127.0.0.1:8090でモックGo APIを起動
-npm run dev:mock     # 別ターミナルで、モックへ接続するnext dev
+```
+
+別ターミナルでもNode.jsを切り替えてからNext.jsを起動します。
+
+```bash
+cd web
+fnm use 24.18.0
+npm run dev:mock
 ```
 
 モックのシナリオ(正常、収集停止、Remoオフライン、古い値、不明、エラーなど)は次で切り替えられます。
@@ -82,10 +99,13 @@ curl http://127.0.0.1:8090/__scenario   # 現在のシナリオと一覧
 
 ```bash
 cd web
+fnm use 24.18.0
+npm run check:node
 npm run format:check
+npm run test:node
+npm test
 npm run lint
 npm run typecheck
-npm test
 npm run build
 npm run test:e2e     # Playwright。モックGo API + next devを自動起動
 ```
@@ -112,9 +132,25 @@ cd backend
 go run ./cmd/ambient-lapis healthcheck --url http://127.0.0.1:8080/readyz
 ```
 
+## フルスタックComposeのローカル実行
+
+`.env.example`を参考にGit管理外の`.env`を用意し、データ・バックアップ用ディレクトリをコンテナUID `10001`が読み書きできるローカルファイルシステム上へ作成します。SQLiteをSMB、CIFS、NFS上へ置かないでください。次の手順はGoとWebをローカルbuildし、Goの8080番を公開せずWebの3000番だけを公開します。
+
+```bash
+docker compose --env-file .env build
+docker compose --env-file .env up -d
+docker compose --env-file .env ps
+docker compose --env-file .env exec remo-api \
+  /app/ambient-lapis healthcheck --url http://127.0.0.1:8080/readyz
+curl --fail http://127.0.0.1:3000/
+docker compose --env-file .env down
+```
+
+`AMBIENT_LAPIS_PORT`を変更した場合は、Web確認先の3000番もその値へ読み替えます。Dockerのhealth statusは`/healthz`によるプロセス生存確認であり、デプロイ受け入れでは上記の`/readyz`も必ず確認します。
+
 ### バックエンド単体Compose
 
-`AMBIENT_LAPIS_DATA_DIR`と`AMBIENT_LAPIS_BACKUP_DIR`は、コンテナUID `10001`が書き込めるローカルファイルシステム上のディレクトリへ設定します。SQLiteをSMB、CIFS、NFS上へ置かないでください。Goの8080番ポートはホストへ公開されません。
+`compose.backend.yaml`はWebを起動せずGoだけを検証するための補助構成です。通常のフルスタック実行にはルートの`compose.yaml`を使用します。`AMBIENT_LAPIS_DATA_DIR`と`AMBIENT_LAPIS_BACKUP_DIR`は、コンテナUID `10001`が書き込めるローカルファイルシステム上のディレクトリへ設定します。Goの8080番ポートはホストへ公開されません。
 
 ```bash
 docker compose --env-file .env -f compose.backend.yaml up --build -d
@@ -136,6 +172,38 @@ docker compose --env-file .env -f compose.backend.yaml logs --tail=100 remo-api
 ```bash
 docker compose --env-file .env -f compose.backend.yaml down
 ```
+
+## ローカル検証とSynology用イメージ
+
+GitHub Actionsや外部レジストリへ依存せず、ローカルで検証したcommitからSynologyへ搬入するイメージを作成します。検証スクリプトはNature APIへ接続せず、Goのfake、Webのfixture、モックAPIを使用します。
+
+```bash
+./scripts/verify-local.sh
+```
+
+`verify-local.sh`はNode.js 24.18.0のWeb検証、Goのformat・test・race・vet・build、Compose設定確認、コンテナbuildをまとめて実行します。WebのPlaywright E2Eはポート3000/8090を使用するため、同ポートで別の開発サーバーを稼働中の場合は停止してから実行してください。稼働中のComposeを止めずに静的検証とbuildだけを行う場合は`SKIP_E2E=1 ./scripts/verify-local.sh`を使用し、E2Eはポートが空いた時間に`cd web && npm run test:e2e`で別途実行します。
+
+検証済みのcommitをチェックアウトした状態で、macOS（Apple Siliconを含む）からSynology向け`linux/amd64`イメージをtarへexportします。exportは再現性を保つため、Gitの作業ツリーがcleanであることを要求します。
+
+```bash
+./scripts/export-synology-images.sh
+```
+
+スクリプトはGit SHAをイメージタグへ使い、`artifacts/ambient-lapis-<sha>-linux-amd64.tar`と対応する`.sha256`を作成します。これらはGit管理外です。tarをSynologyへ安全な経路で搬入し、チェックサム確認後にロードします。
+
+```bash
+sha256sum -c ambient-lapis-<sha>-linux-amd64.tar.sha256
+docker load -i ambient-lapis-<sha>-linux-amd64.tar
+```
+
+`.env`の`APP_VERSION`へtarに含まれる完全なGit SHAを設定し、NAS上ではbuildもレジストリpullも行わず起動します。
+
+```bash
+docker compose --env-file .env up -d --no-build
+docker compose --env-file .env ps
+```
+
+更新時も同じ手順（新しいtarのチェックサム確認、`docker load`、`APP_VERSION`更新、`up -d --no-build`）を繰り返します。Goの8080番はホストへ公開せず、LANへ公開するのはWebの3000番だけです。
 
 ### バックアップからの復旧
 

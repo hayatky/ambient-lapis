@@ -42,3 +42,6 @@ backups/
 
 # Logs
 *.log
+
+# Manual Synology image exports
+artifacts/

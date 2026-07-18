@@ -995,7 +995,10 @@ danger状態(収集停止、Remoオフライン)はさらに次を重ねる: (a)
 ```yaml
 services:
   remo-api:
-    image: ghcr.io/example/ambient-lapis-api:${APP_VERSION}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: ambient-lapis-api:${APP_VERSION:-local}
     restart: unless-stopped
     stop_grace_period: 35s
     environment:
@@ -1005,42 +1008,69 @@ services:
       DATABASE_PATH: /data/ambient-lapis.sqlite3
       BACKUP_DIR: /backups
       POLL_INTERVAL: ${POLL_INTERVAL:-5m}
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-15s}
+      STALE_AFTER: ${STALE_AFTER:-}
+      LISTEN_ADDR: :8080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       TZ: Asia/Tokyo
     secrets:
       - nature_remo_token
     volumes:
       - type: bind
-        source: ${AMBIENT_LAPIS_DATA_DIR}
+        source: ${AMBIENT_LAPIS_DATA_DIR:?AMBIENT_LAPIS_DATA_DIR is required}
         target: /data
       - type: bind
-        source: ${AMBIENT_LAPIS_BACKUP_DIR}
+        source: ${AMBIENT_LAPIS_BACKUP_DIR:?AMBIENT_LAPIS_BACKUP_DIR is required}
         target: /backups
     healthcheck:
-      test: ["CMD", "/app/ambient-lapis", "healthcheck", "--url", "http://127.0.0.1:8080/readyz"]
+      test: ["CMD", "/app/ambient-lapis", "healthcheck", "--url", "http://127.0.0.1:8080/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
     networks:
       - internal
 
   web:
-    image: ghcr.io/example/ambient-lapis-web:${APP_VERSION}
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    image: ambient-lapis-web:${APP_VERSION:-local}
     restart: unless-stopped
+    init: true
     environment:
       REMO_API_BASE_URL: http://remo-api:8080
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
       TZ: Asia/Tokyo
     depends_on:
       remo-api:
-        condition: service_healthy
+        condition: service_started
     ports:
       - "${AMBIENT_LAPIS_PORT:-3000}:3000"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const socket=require('node:net').connect(3000,'127.0.0.1');socket.setTimeout(4000);socket.on('connect',()=>{socket.end();process.exit(0)});socket.on('timeout',()=>process.exit(1));socket.on('error',()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /app/.next/cache:size=64m,uid=10001,gid=10001,mode=0700
+    security_opt:
+      - no-new-privileges:true
     networks:
       - internal
 
@@ -1053,14 +1083,19 @@ secrets:
     file: ./secrets/nature_remo_token
 ```
 
-実装時は実際のGHCR所有者へ`example`を置換する。イメージは`linux/amd64`と`linux/arm64`を同一タグのmanifestとして発行する。`latest`は運用Composeで使用せず、リリースタグまたはGit SHAを固定する。
+- ローカルでは`build`を使用し、`APP_VERSION`未指定時は`local`タグとする。Synologyへ搬入する場合は、検証済みcommitの完全なGit SHAを`APP_VERSION`へ設定し、同じSHAを付けた`ambient-lapis-api`と`ambient-lapis-web`の`linux/amd64`イメージをMac上でbuildしてtarへexportする。`latest`や外部レジストリは使用しない。
+- `scripts/verify-local.sh`でNature APIへ接続しないローカル検証（Go、Web、Compose、コンテナbuild）を実行し、`scripts/export-synology-images.sh`でcleanなGit作業ツリーから`artifacts/ambient-lapis-<sha>-linux-amd64.tar`とSHA-256チェックサムを作成する。tarは安全な経路でSynologyへ搬入し、`docker load`でロードする。
+- GoのDocker healthcheckはプロセス生存を表す`/healthz`を使用する。設定、DB、マイグレーション、バックアップ先を含む`/readyz`はデプロイ後の運用受け入れで別途確認し、Dockerの再起動判定には使用しない。
+- WebはGoのreadinessに関係なくエラーシェルと再試行導線を返せるため、依存条件を`service_started`とする。Goが起動中でreadiness未達の場合は、Goの正規error envelopeとHTTP 503をBFFが維持する。Go停止、接続不能、timeout、設定欠落、契約外レスポンスの場合だけ、秘密情報を含まない502へ変換する。
+- 両コンテナは非rootイメージ、read-only root filesystem、`no-new-privileges`を使用する。書き込みはGoのDB・バックアップbind mountと、各コンテナの一時`tmpfs`だけへ限定する。Webの`/app/.next/cache`も永続化せずtmpfsとする。
+- GoとWebはinternal networkで接続し、Goの8080番をホストへ公開しない。LANへ公開するのはWebの3000番だけとする。
 
 ### 13.1 Synology
 
-- Container ManagerでCompose projectとして起動する。
+- Container ManagerでCompose projectとして起動する。Actionsや外部レジストリを使わず、Macから搬入したtarをローカルイメージとして使用する。
 - `AMBIENT_LAPIS_DATA_DIR`と`AMBIENT_LAPIS_BACKUP_DIR`はNASローカルボリューム上の絶対パスとする。
 - プロジェクトを実行するユーザーだけがsecretファイルを読めるようにする。
-- NAS上ではイメージをビルドせず、GHCRからpullする。
+- Macで作成した`ambient-lapis-<sha>-linux-amd64.tar`と`.sha256`を搬入し、`sha256sum -c ambient-lapis-<sha>-linux-amd64.tar.sha256`で検証してから`docker load -i ambient-lapis-<sha>-linux-amd64.tar`を実行する。`.env`の`APP_VERSION`へtarに含まれる完全なGit SHAを設定し、`docker compose --env-file .env up -d --no-build`で起動する。`--no-build`を必須とし、NAS上ではbuildもpullも行わない。
 - Container ManagerのCompose実装が`depends_on.condition`へ非対応の場合でも、Web側はGo API未準備を503として扱って起動継続できるようにする。
 
 ### 13.2 Ubuntu Server
@@ -1167,9 +1202,9 @@ token、Authorization、APIレスポンス全文、secretファイル内容を�
 ### 17.1 更新
 
 1. 最新バックアップの成功とintegrity checkを確認する。
-2. 新しいイメージタグをpullする。
+2. Macから搬入した新しいイメージtarのSHA-256を確認し、`docker load`する。
 3. リリースノートとマイグレーション有無を確認する。
-4. `docker compose up -d`で更新する。
+4. `.env`の`APP_VERSION`を更新し、`docker compose --env-file .env up -d --no-build`で更新する。
 5. `/healthz`、`/readyz`、`/api/v1/status`を確認する。
 6. Webの現在値、履歴、テーマ、エラー表示を確認する。
 
@@ -1229,7 +1264,7 @@ Nature APIはHTTPテストサーバーで模擬する。PoC完了後、匿名化
 
 ### 18.4 Compose・運用受け入れ試験
 
-- `linux/amd64`と`linux/arm64`の両イメージが起動する。
+- Synology向け`linux/amd64`の両イメージが起動する。別アーキテクチャの検証は、その実行環境向けに個別にbuildしたローカルイメージで行う。
 - Synology Container ManagerでComposeを起動できる。
 - Ubuntu Serverで同じComposeを起動できる。
 - Web UIへアクセスしなくても30分以上収集が継続する。
@@ -1241,21 +1276,27 @@ Nature APIはHTTPテストサーバーで模擬する。PoC完了後、匿名化
 
 ## 19. 要件トレーサビリティ
 
-| 要件 | 設計箇所 | 主な試験 | 初期状態 |
+状態欄は検証の証拠を段階別に示す。「自動試験済み」はfixtureまたはローカルfakeを用いた単体・結合・E2Eの合格を意味し、実Nature API、実データ、実端末、Compose運用の確認を代替しない。
+
+2026-07-18のローカル実Compose受け入れでは、30分間に既定5分間隔で7回の収集がすべてsuccessとなり、GoとWebが常時healthy、Goがreadyであることを確認した。Goの8080番はホストへ公開されず、WebのSSRとBFFは実データを正常に表示・中継した。コンテナ再起動後もraw点数が7から8へ増えて収集が継続し、bundleとログにtoken、実ID、生レスポンスが含まれないことを確認した。
+
+この受け入れはローカルでの1回の試験であり、Synology、実スマートフォン・PC・Windows、付属リモコン操作、実障害からの復旧は未検証のままとする。
+
+| 要件 | 設計箇所 | 主な試験 | 現在の検証状態 |
 | --- | --- | --- | --- |
-| Docker Composeで起動 | 3, 13 | Compose受け入れ | 未検証 |
-| Webアクセスなしで収集 | 4, 5 | IT-04、運用受け入れ | 未検証 |
-| 既定5分ごとに保存・間隔変更可能 | 5, 12 | UT-06、設定境界、運用受け入れ | 未検証 |
-| 再起動後もデータ保持 | 6, 13 | IT-04 | 未検証 |
-| 現在の温度・湿度表示 | 8.6, 9.3 | API契約、E2E | 未検証 |
-| 温湿度履歴 | 7, 8.7, 9.5 | UT-08〜10、E2E | 未検証 |
-| エアコン認識状態 | 5.5, 8.6, 9.4 | UT-04、E2E | 実機PoC待ち |
-| オフライン・取得停止検知 | 5.7, 8.5, 11 | UT-07、E2E | 未検証 |
-| token非露出 | 3.2, 12, 16 | IT-09 | 未検証 |
-| レスポンシブUI | 9, 10 | E2E・実機確認 | 未検証 |
-| ライト / ダーク | 10 | E2E・視覚確認 | 未検証 |
-| 上質で一貫したデザイン | 9, 10 | 視覚確認 | 未検証 |
-| スマートフォン・PC実画面確認 | 18.3 | 実機確認 | 未検証 |
+| Docker Composeで起動 | 3, 13 | Compose受け入れ | ローカルのフルスタックComposeで30分稼働確認済み／Synology待ち |
+| Webアクセスなしで収集 | 4, 5 | IT-04、運用受け入れ | ローカルComposeで30分間の独立収集を確認済み／Synology連続運用待ち |
+| 既定5分ごとに保存・間隔変更可能 | 5, 12 | UT-06、設定境界、運用受け入れ | 設定の自動試験と実機5分間隔・7回successを確認済み／異なる実間隔と長期運用待ち |
+| 再起動後もデータ保持 | 6, 13 | IT-04 | ローカルCompose再起動後の保持と収集再開を確認済み／Synology再起動試験待ち |
+| 現在の温度・湿度表示 | 8.6, 9.3 | API契約、E2E | mock E2Eと実データのSSR・BFF結合確認済み／実端末表示待ち |
+| 温湿度履歴 | 7, 8.7, 9.5 | UT-08〜10、E2E | 集計・mock E2Eと実データBFF・再起動後のraw継続を確認済み／実端末表示待ち |
+| エアコン認識状態 | 5.5, 8.6, 9.4 | UT-04、E2E | 正規化・mock E2Eと実データ結合確認済み／付属リモコン操作PoC待ち |
+| オフライン・取得停止検知 | 5.7, 8.5, 11 | UT-07、E2E | 判定・mock E2E・復帰操作確認済み／実障害復旧試験待ち |
+| token非露出 | 3.2, 12, 16 | IT-09 | 自動試験、secret検索、実Composeのbundle・ログ確認済み／Synology配備確認待ち |
+| レスポンシブUI | 9, 10 | E2E・実機確認 | 3 viewportのE2E・エミュレート表示確認済み／実端末待ち |
+| ライト / ダーク | 10 | E2E・視覚確認 | 永続化・両テーマのE2E・エミュレート表示確認済み／実端末待ち |
+| 上質で一貫したデザイン | 9, 10 | 視覚確認 | 両テーマ・主要状態のエミュレート視覚確認済み／利用者の実端末受け入れ待ち |
+| スマートフォン・PC実画面確認 | 18.3 | 実機確認 | エミュレートviewport確認済み／スマートフォン・PC実機待ち |
 
 ## 20. 実機PoC検証ゲート
 
@@ -1267,7 +1308,7 @@ Nature APIはHTTPテストサーバーで模擬する。PoC完了後、匿名化
 | POC-02 | `/1/appliances`の匿名化レスポンス | モード、温度、風量、風向の表示マッピング |
 | POC-03 | 付属リモコンのON/OFF反映 | `button`正規化と注記 |
 | POC-04 | モード・設定温度変更の反映 | 区間分割とツールチップ |
-| POC-05 | 30〜60分の更新頻度測定 | `POLL_INTERVAL`と`STALE_AFTER`の再評価 |
+| POC-05 | 30〜60分の更新頻度測定 | 2026-07-18に30分測定し、温度・湿度の`observed_at`が開始時から終了時までに双方変化した。1回だけの測定では更新規則を確定できないため、`POLL_INTERVAL`と`STALE_AFTER`は変更せず追加測定待ち |
 | POC-06 | リモコン反映遅延 | UIの状態変更時刻説明 |
 | POC-07 | Synology CPU / Compose / 保存先 | イメージarch、bind mount、運用手順 |
 

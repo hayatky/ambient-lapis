@@ -9,16 +9,18 @@
     "postcss": "8.5.19"
   },
   "scripts": {
-    "dev": "next dev",
-    "dev:mock": "REMO_API_BASE_URL=http://127.0.0.1:8090 next dev",
-    "mock-api": "node test/mock-api/server.ts",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint . --max-warnings=0",
-    "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check .",
-    "test": "vitest run",
-    "test:e2e": "playwright test"
+    "check:node": "node scripts/check-node-version.mjs",
+    "dev": "npm run check:node --silent && next dev",
+    "dev:mock": "npm run check:node --silent && REMO_API_BASE_URL=http://127.0.0.1:8090 next dev",
+    "mock-api": "npm run check:node --silent && node test/mock-api/server.ts",
+    "build": "npm run check:node --silent && next build",
+    "start": "npm run check:node --silent && next start",
+    "lint": "npm run check:node --silent && eslint . --max-warnings=0",
+    "typecheck": "npm run check:node --silent && tsc --noEmit",
+    "format:check": "npm run check:node --silent && prettier --check .",
+    "test:node": "npm run check:node --silent && node --test scripts/check-node-version.node-test.mjs",
+    "test": "npm run test:node --silent && vitest run",
+    "test:e2e": "npm run check:node --silent && playwright test"
   },
   "dependencies": {
     "echarts": "6.1.0",

@@ -41,6 +41,44 @@ services:
     networks:
       - internal
 
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    image: ambient-lapis-web:${APP_VERSION:-local}
+    restart: unless-stopped
+    init: true
+    environment:
+      REMO_API_BASE_URL: http://remo-api:8080
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      TZ: Asia/Tokyo
+    depends_on:
+      remo-api:
+        condition: service_started
+    ports:
+      - "${AMBIENT_LAPIS_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const socket=require('node:net').connect(3000,'127.0.0.1');socket.setTimeout(4000);socket.on('connect',()=>{socket.end();process.exit(0)});socket.on('timeout',()=>process.exit(1));socket.on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /app/.next/cache:size=64m,uid=10001,gid=10001,mode=0700
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+
 networks:
   internal:
     driver: bridge

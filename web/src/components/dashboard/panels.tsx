@@ -6,13 +6,7 @@ import type {
   DisplayTimestamp,
 } from "@/lib/view-model/types";
 
-import {
-  AirconIcon,
-  HumidityIcon,
-  RefreshIcon,
-  TemperatureIcon,
-  WarningIcon,
-} from "./icons";
+import { RefreshIcon, WarningIcon } from "./icons";
 
 export interface RetryState {
   errorMessage: string | null;
@@ -84,7 +78,7 @@ export function WarningRail({ warnings }: { warnings: DashboardWarning[] }) {
         <WarningIcon />
       </div>
       <div className="warning-rail__body">
-        <p className="warning-rail__eyebrow">確認してください</p>
+        <p className="warning-rail__eyebrow">SIGNAL</p>
         <h2>{primary.title}</h2>
         <p>{primary.detail}</p>
       </div>
@@ -114,14 +108,17 @@ function Metric({
 }) {
   const metric = environment[kind];
   const isTemperature = kind === "temperature";
-  const Icon = isTemperature ? TemperatureIcon : HumidityIcon;
   const label = isTemperature ? "温度" : "湿度";
+  const englishLabel = isTemperature ? "TEMPERATURE" : "HUMIDITY";
 
   return (
     <section className={`current-metric current-metric--${kind}`}>
       <div className="current-metric__label">
-        <Icon />
+        <span aria-hidden="true" className="current-metric__key">
+          {isTemperature ? "T" : "H"}
+        </span>
         <h3>{label}</h3>
+        <span aria-hidden="true">{englishLabel}</span>
       </div>
       <p className="current-metric__value" data-testid={`current-${kind}`}>
         <span>{metric.displayValue}</span>
@@ -159,7 +156,7 @@ export function EnvironmentPanel({
     >
       <header className="section-heading">
         <div>
-          <p className="section-kicker">CURRENT</p>
+          <p className="section-kicker">ROOM / NOW</p>
           <h2 id="environment-title">室内の今</h2>
         </div>
         {environment ? (
@@ -254,13 +251,13 @@ export function AirconPanel({ aircon, initializing, state }: AirconPanelProps) {
           <p className="section-kicker">AIR CONDITIONER</p>
           <h2 id="aircon-title">エアコン - Nature Remo認識状態</h2>
         </div>
-        <AirconIcon className="section-heading__icon" />
       </header>
 
       {state.isLoading && !aircon ? (
         <PanelLoading label="エアコン認識状態を読み込んでいます" />
       ) : aircon ? (
-        <div aria-busy={state.isRefreshing}>
+        <div aria-busy={state.isRefreshing} className="aircon-panel__content">
+          <p className="aircon-panel__caption">現在、Remoが認識している状態</p>
           <div className="aircon-state-row">
             <span
               className={`aircon-state aircon-state--${aircon.recognitionState}`}
@@ -311,8 +308,10 @@ export function AirconPanel({ aircon, initializing, state }: AirconPanelProps) {
 
       <RetryMessage state={state} />
       <p className="aircon-disclaimer">
-        <WarningIcon />
-        エアコン本体との双方向確認ではありません
+        <span aria-hidden="true" className="aircon-disclaimer__mark">
+          NOTE
+        </span>
+        <span>エアコン本体との双方向確認ではありません</span>
       </p>
     </section>
   );
@@ -336,7 +335,7 @@ export function DailySummaryPanel({ days, state }: DailySummaryPanelProps) {
     <section aria-labelledby="daily-title" className="surface daily-panel">
       <header className="section-heading section-heading--wide">
         <div>
-          <p className="section-kicker">DAILY RANGE</p>
+          <p className="section-kicker">SEVEN DAYS / JST</p>
           <h2 id="daily-title">7日間の記録</h2>
           <p>日本時間の一日ごとに、最低・平均・最高を並べています。</p>
         </div>

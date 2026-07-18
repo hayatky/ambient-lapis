@@ -99,6 +99,7 @@ describe("buildHistoryChartOption", () => {
           name: "湿度",
           yAxisIndex: 1,
           connectNulls: false,
+          lineStyle: { type: "dashed" },
           data: [
             { value: [Date.parse(FIRST_TIME), 50], symbol: "none" },
             { value: [Date.parse(GAP_TIME), null], symbol: "none" },

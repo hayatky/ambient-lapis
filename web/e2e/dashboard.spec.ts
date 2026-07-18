@@ -297,6 +297,48 @@ test(
   },
 );
 
+test("320pxでも状態と操作を欠けさせず現在値を表示する", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium");
+  await page.setViewportSize({ width: 320, height: 720 });
+  await openDashboard(page);
+
+  await expect(page.getByText("収集は正常です", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("current-temperature")).toContainText("26.4");
+  await expect(page.getByTestId("current-humidity")).toContainText("58");
+  await expect(
+    page.getByRole("heading", { name: "温度と湿度の履歴", exact: true }),
+  ).toBeVisible();
+
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+  if (!viewport) return;
+
+  const layout = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + 1);
+
+  for (const selector of [
+    "[data-theme-selector] label",
+    ".period-selector label",
+  ]) {
+    const targets = page.locator(selector);
+    const count = await targets.count();
+    for (let index = 0; index < count; index += 1) {
+      const box = await targets.nth(index).boundingBox();
+      expect(box, `${selector} ${index} should have a box`).not.toBeNull();
+      if (!box) continue;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+});
+
 test(
   "期間プリセット、キーボード操作、任意のJST日付範囲を反映する",
   { tag: "@desktop" },

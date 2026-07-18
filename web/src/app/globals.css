@@ -2,54 +2,66 @@
 
 :root,
 :root[data-theme="light"] {
-  --bg-canvas: #f3f6f9;
-  --bg-surface: #ffffff;
-  --bg-elevated: #f9fbfd;
-  --text-primary: #17212d;
-  --text-secondary: #5f6e7d;
-  --border-subtle: #dde5ec;
-  --accent-lapis: #315fd5;
-  --temperature: #c75b3f;
-  --humidity: #3379b8;
-  --aircon-on: #6379c8;
-  --success: #28735d;
-  --warning: #9a6518;
-  --danger: #b04444;
+  --bg-canvas: #f1eee7;
+  --bg-surface: #f7f4ee;
+  --bg-elevated: #e8e3da;
+  --text-primary: #152039;
+  --text-secondary: #626973;
+  --border-subtle: #cbc5ba;
+  --accent-lapis: #214ea5;
+  --temperature: #ae513a;
+  --humidity: #246981;
+  --aircon-on: #3d5fae;
+  --success: #276d58;
+  --warning: #8b5d1e;
+  --danger: #a43e43;
+  --lapis-panel: #123475;
+  --lapis-panel-deep: #0a255e;
+  --lapis-panel-text: #f7f3e9;
+  --lapis-panel-muted: #bac9e8;
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg-canvas: #0a1018;
-  --bg-surface: #121b26;
-  --bg-elevated: #182331;
-  --text-primary: #f1f5f9;
-  --text-secondary: #a7b4c2;
-  --border-subtle: #283645;
-  --accent-lapis: #7e9eff;
-  --temperature: #f08a6e;
-  --humidity: #67a9e4;
-  --aircon-on: #7e91d8;
-  --success: #58b497;
-  --warning: #e4af55;
-  --danger: #f07b7b;
+  --bg-canvas: #07101e;
+  --bg-surface: #0d1728;
+  --bg-elevated: #152238;
+  --text-primary: #efede7;
+  --text-secondary: #a0a9b7;
+  --border-subtle: #2a3546;
+  --accent-lapis: #7ea3ff;
+  --temperature: #ee8a70;
+  --humidity: #70b8d0;
+  --aircon-on: #7895e3;
+  --success: #69b69d;
+  --warning: #dfad60;
+  --danger: #ee7a7e;
+  --lapis-panel: #173b83;
+  --lapis-panel-deep: #0c275f;
+  --lapis-panel-text: #f5f2ea;
+  --lapis-panel-muted: #c2d0ed;
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --bg-canvas: #0a1018;
-    --bg-surface: #121b26;
-    --bg-elevated: #182331;
-    --text-primary: #f1f5f9;
-    --text-secondary: #a7b4c2;
-    --border-subtle: #283645;
-    --accent-lapis: #7e9eff;
-    --temperature: #f08a6e;
-    --humidity: #67a9e4;
-    --aircon-on: #7e91d8;
-    --success: #58b497;
-    --warning: #e4af55;
-    --danger: #f07b7b;
+    --bg-canvas: #07101e;
+    --bg-surface: #0d1728;
+    --bg-elevated: #152238;
+    --text-primary: #efede7;
+    --text-secondary: #a0a9b7;
+    --border-subtle: #2a3546;
+    --accent-lapis: #7ea3ff;
+    --temperature: #ee8a70;
+    --humidity: #70b8d0;
+    --aircon-on: #7895e3;
+    --success: #69b69d;
+    --warning: #dfad60;
+    --danger: #ee7a7e;
+    --lapis-panel: #173b83;
+    --lapis-panel-deep: #0c275f;
+    --lapis-panel-text: #f5f2ea;
+    --lapis-panel-muted: #c2d0ed;
     color-scheme: dark;
   }
 }
@@ -68,6 +80,10 @@ body {
   background: var(--bg-canvas);
   color: var(--text-primary);
   font-family:
+    "Avenir Next",
+    "Helvetica Neue",
+    "Hiragino Sans",
+    "Yu Gothic UI",
     system-ui,
     -apple-system,
     BlinkMacSystemFont,

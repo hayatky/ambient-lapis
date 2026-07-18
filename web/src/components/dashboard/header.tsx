@@ -34,7 +34,7 @@ export function DashboardHeader({
         </span>
         <div>
           <p>AMBIENT LAPIS</p>
-          <h1>部屋の空気を、静かに見渡す。</h1>
+          <h1>部屋の空気に、静かな輪郭を。</h1>
         </div>
       </div>
 

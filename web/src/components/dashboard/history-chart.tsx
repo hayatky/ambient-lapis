@@ -60,7 +60,7 @@ export function HistoryChart({
     >
       <header className="history-chart__header">
         <div>
-          <p className="history-chart__eyebrow">室内環境</p>
+          <p className="history-chart__eyebrow">ATMOSPHERE / HISTORY</p>
           <h2 id="history-chart-title" className="history-chart__title">
             温度と湿度の履歴
           </h2>

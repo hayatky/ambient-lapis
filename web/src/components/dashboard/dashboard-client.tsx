@@ -216,11 +216,14 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         </div>
 
         <footer className="dashboard-notes">
-          <p>表示時刻はすべて日本時間（JST）です。</p>
-          <p>
-            欠損・不明・古い値を補完せず、Nature
-            Remoから確認できた情報だけを表示します。
-          </p>
+          <p className="dashboard-notes__brand">AMBIENT LAPIS</p>
+          <div>
+            <p>表示時刻はすべて日本時間（JST）です。</p>
+            <p>
+              欠損・不明・古い値を補完せず、Nature
+              Remoから確認できた情報だけを表示します。
+            </p>
+          </div>
         </footer>
       </div>
     </main>

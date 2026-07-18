@@ -114,7 +114,7 @@ export function buildHistoryChartOption({
     textStyle: {
       color: palette.text,
       fontFamily:
-        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        '"Avenir Next", "Helvetica Neue", "Hiragino Sans", system-ui, sans-serif',
     },
     grid: {
       left: 12,
@@ -225,7 +225,7 @@ export function buildHistoryChartOption({
         showSymbol: true,
         symbol: "none",
         smooth: false,
-        lineStyle: { color: palette.humidity, width: 1.9 },
+        lineStyle: { color: palette.humidity, width: 1.9, type: "dashed" },
         itemStyle: { color: palette.humidity },
         emphasis: { disabled: true },
       },

@@ -1,80 +1,71 @@
 @import "tailwindcss";
 
+/*
+ * 観測手帳 (Observatory Folio) tokens.
+ * One continuous surface per theme: lapis-night (dark) / ink on warm
+ * paper (light). Series colors are palette-validated (CVD / contrast);
+ * text and status tokens all clear 4.5:1 on their surface.
+ */
 :root,
 :root[data-theme="light"] {
-  --bg-canvas: #f3f6f9;
-  --bg-surface: #ffffff;
-  --bg-elevated: #f9fbfd;
-  --text-primary: #17212d;
-  --text-secondary: #5f6e7d;
-  --border-subtle: #dde5ec;
-  --accent-lapis: #315fd5;
-  --temperature: #c75b3f;
-  --humidity: #3379b8;
-  --aircon-on: #6379c8;
-  --success: #28735d;
-  --warning: #9a6518;
-  --danger: #b04444;
-  --shadow-card: 0 12px 36px rgba(31, 50, 73, 0.08);
+  --canvas: #f7f6f2;
+  --ink: #1c2a45;
+  --ink-secondary: #56617a;
+  --ink-muted: #64708a;
+  --hairline: #e4e1d8;
+  --hairline-strong: #cfccc0;
+  --raised: #fdfcf8;
+  --temperature: #c2503c;
+  --humidity: #3d63c0;
+  --gold: #8a6d2f;
+  --gold-soft: #b99a4f;
+  --danger: #ae402d;
+  --warning: #8a5d10;
+  --success: #206b4e;
+  --ribbon-on: rgba(28, 42, 69, 0.18);
+  --ribbon-unknown: rgba(138, 93, 16, 0.22);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg-canvas: #0a1018;
-  --bg-surface: #121b26;
-  --bg-elevated: #182331;
-  --text-primary: #f1f5f9;
-  --text-secondary: #a7b4c2;
-  --border-subtle: #283645;
-  --accent-lapis: #7e9eff;
-  --temperature: #f08a6e;
-  --humidity: #67a9e4;
-  --aircon-on: #7e91d8;
-  --success: #58b497;
-  --warning: #e4af55;
-  --danger: #f07b7b;
-  --shadow-card: none;
+  --canvas: #0f182e;
+  --ink: #e8ecf5;
+  --ink-secondary: #94a0b8;
+  --ink-muted: #7c8aa8;
+  --hairline: rgba(232, 236, 245, 0.12);
+  --hairline-strong: rgba(232, 236, 245, 0.24);
+  --raised: #1a2440;
+  --temperature: #d67350;
+  --humidity: #6089de;
+  --gold: #c9a961;
+  --gold-soft: #c9a961;
+  --danger: #f49084;
+  --warning: #e3b466;
+  --success: #6cc5a0;
+  --ribbon-on: rgba(148, 160, 184, 0.3);
+  --ribbon-unknown: rgba(227, 180, 102, 0.24);
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --bg-canvas: #0a1018;
-    --bg-surface: #121b26;
-    --bg-elevated: #182331;
-    --text-primary: #f1f5f9;
-    --text-secondary: #a7b4c2;
-    --border-subtle: #283645;
-    --accent-lapis: #7e9eff;
-    --temperature: #f08a6e;
-    --humidity: #67a9e4;
-    --aircon-on: #7e91d8;
-    --success: #58b497;
-    --warning: #e4af55;
-    --danger: #f07b7b;
-    --shadow-card: none;
+    --canvas: #0f182e;
+    --ink: #e8ecf5;
+    --ink-secondary: #94a0b8;
+    --ink-muted: #7c8aa8;
+    --hairline: rgba(232, 236, 245, 0.12);
+    --hairline-strong: rgba(232, 236, 245, 0.24);
+    --raised: #1a2440;
+    --temperature: #d67350;
+    --humidity: #6089de;
+    --gold: #c9a961;
+    --gold-soft: #c9a961;
+    --danger: #f49084;
+    --warning: #e3b466;
+    --success: #6cc5a0;
+    --ribbon-on: rgba(148, 160, 184, 0.3);
+    --ribbon-unknown: rgba(227, 180, 102, 0.24);
     color-scheme: dark;
-  }
-}
-
-.surface-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 20px;
-  box-shadow: var(--shadow-card);
-}
-
-.metric-figure {
-  font-size: clamp(3.5rem, 10vw, 6.5rem);
-  font-weight: 500;
-  line-height: 0.95;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-}
-
-@media (min-width: 1024px) {
-  .metric-figure {
-    font-size: clamp(3.5rem, 5.5vw, 6.5rem);
   }
 }
 
@@ -83,14 +74,14 @@
 }
 
 html {
-  background: var(--bg-canvas);
+  background: var(--canvas);
 }
 
 body {
   min-height: 100vh;
   margin: 0;
-  background: var(--bg-canvas);
-  color: var(--text-primary);
+  background: var(--canvas);
+  color: var(--ink);
   font-family:
     system-ui,
     -apple-system,
@@ -98,16 +89,74 @@ body {
     "Segoe UI",
     sans-serif;
   font-size: 0.9375rem;
-  line-height: 1.65;
+  line-height: 1.7;
 }
 
 a {
-  color: var(--accent-lapis);
+  color: var(--ink);
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent-lapis);
-  outline-offset: 2px;
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+/* Tracked, terse Japanese section labels — the folio's running heads. */
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+}
+
+/* Instrument-style hero numerals: mixed scale, proportional figures. */
+.hero-figure {
+  font-weight: 300;
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+}
+
+.hero-figure-minor {
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* Daily record rows: date | temp bar | temp numbers | hum bar | hum
+   numbers on wide screens; bars stack under a shared date on phones. */
+/* Display comes from utility classes (hidden / grid) so responsive
+   visibility keeps working; this rule only supplies the templates. */
+.daily-grid {
+  grid-template-columns: 2.9rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    "date tbar tnum"
+    "date hbar hnum";
+  column-gap: 12px;
+}
+
+.daily-grid > :nth-child(1) {
+  grid-area: date;
+}
+.daily-grid > :nth-child(2) {
+  grid-area: tbar;
+}
+.daily-grid > :nth-child(3) {
+  grid-area: tnum;
+}
+.daily-grid > :nth-child(4) {
+  grid-area: hbar;
+}
+.daily-grid > :nth-child(5) {
+  grid-area: hnum;
+}
+
+@media (min-width: 900px) {
+  .daily-grid {
+    grid-template-columns:
+      3.4rem minmax(0, 1.1fr) auto minmax(0, 1fr)
+      auto;
+    grid-template-areas: "date tbar tnum hbar hnum";
+    column-gap: 16px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

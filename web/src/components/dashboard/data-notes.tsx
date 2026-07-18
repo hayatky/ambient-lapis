@@ -6,9 +6,9 @@ export function DataNotes(): ReactElement {
   return (
     <section
       aria-label="データの注記"
-      className="border-t border-[var(--border-subtle)] pt-5"
+      className="border-t border-[var(--hairline)] pt-5"
     >
-      <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-xs leading-relaxed text-[var(--text-secondary)]">
+      <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[0.75rem] leading-relaxed text-[var(--ink-muted)]">
         <li>
           計測時刻はセンサーが値を観測した時刻、取得時刻はNature Cloud
           APIからデータを取得した時刻です。

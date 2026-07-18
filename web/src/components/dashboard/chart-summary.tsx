@@ -7,13 +7,13 @@ interface ChartSummaryProps {
 }
 
 // Text alternative for the chart: minimum, maximum and latest values in
-// the displayed range, reachable by keyboard (§10.5).
+// the displayed range, reachable by keyboard.
 export function ChartSummary({ summary }: ChartSummaryProps): ReactElement {
   return (
     <div
       tabIndex={0}
       aria-label="グラフのテキスト要約"
-      className="rounded-[12px] bg-[var(--bg-elevated)] px-4 py-3 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]"
+      className="border-t border-[var(--hairline)] pt-2 text-[0.8125rem] leading-relaxed text-[var(--ink-secondary)]"
     >
       {summary.temperature ? (
         <p className="m-0">

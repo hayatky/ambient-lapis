@@ -5,27 +5,31 @@
 export interface ChartTokens {
   temperature: string;
   humidity: string;
-  airconOn: string;
-  textPrimary: string;
-  textSecondary: string;
-  borderSubtle: string;
-  bgSurface: string;
-  bgElevated: string;
-  accent: string;
+  ink: string;
+  inkSecondary: string;
+  inkMuted: string;
+  hairline: string;
+  raised: string;
+  canvas: string;
+  gold: string;
   warning: string;
+  ribbonOn: string;
+  ribbonUnknown: string;
 }
 
 export const FALLBACK_TOKENS: ChartTokens = {
-  temperature: "#c75b3f",
-  humidity: "#3379b8",
-  airconOn: "#6379c8",
-  textPrimary: "#17212d",
-  textSecondary: "#5f6e7d",
-  borderSubtle: "#dde5ec",
-  bgSurface: "#ffffff",
-  bgElevated: "#f9fbfd",
-  accent: "#315fd5",
-  warning: "#9a6518",
+  temperature: "#c2503c",
+  humidity: "#3d63c0",
+  ink: "#1c2a45",
+  inkSecondary: "#56617a",
+  inkMuted: "#64708a",
+  hairline: "#e4e1d8",
+  raised: "#fdfcf8",
+  canvas: "#f7f6f2",
+  gold: "#8a6d2f",
+  warning: "#8a5d10",
+  ribbonOn: "rgba(28, 42, 69, 0.18)",
+  ribbonUnknown: "rgba(138, 93, 16, 0.22)",
 };
 
 export function readChartTokens(root: HTMLElement): ChartTokens {
@@ -37,18 +41,19 @@ export function readChartTokens(root: HTMLElement): ChartTokens {
   return {
     temperature: read("--temperature", FALLBACK_TOKENS.temperature),
     humidity: read("--humidity", FALLBACK_TOKENS.humidity),
-    airconOn: read("--aircon-on", FALLBACK_TOKENS.airconOn),
-    textPrimary: read("--text-primary", FALLBACK_TOKENS.textPrimary),
-    textSecondary: read("--text-secondary", FALLBACK_TOKENS.textSecondary),
-    borderSubtle: read("--border-subtle", FALLBACK_TOKENS.borderSubtle),
-    bgSurface: read("--bg-surface", FALLBACK_TOKENS.bgSurface),
-    bgElevated: read("--bg-elevated", FALLBACK_TOKENS.bgElevated),
-    accent: read("--accent-lapis", FALLBACK_TOKENS.accent),
+    ink: read("--ink", FALLBACK_TOKENS.ink),
+    inkSecondary: read("--ink-secondary", FALLBACK_TOKENS.inkSecondary),
+    inkMuted: read("--ink-muted", FALLBACK_TOKENS.inkMuted),
+    hairline: read("--hairline", FALLBACK_TOKENS.hairline),
+    raised: read("--raised", FALLBACK_TOKENS.raised),
+    canvas: read("--canvas", FALLBACK_TOKENS.canvas),
+    gold: read("--gold", FALLBACK_TOKENS.gold),
     warning: read("--warning", FALLBACK_TOKENS.warning),
+    ribbonOn: read("--ribbon-on", FALLBACK_TOKENS.ribbonOn),
+    ribbonUnknown: read("--ribbon-unknown", FALLBACK_TOKENS.ribbonUnknown),
   };
 }
 
-// 26% alpha for the aircon ON band keeps it a quiet background layer.
 export function withAlpha(color: string, alpha: number): string {
   const match = /^#([0-9a-fA-F]{6})$/.exec(color);
   if (!match || match[1] === undefined) {

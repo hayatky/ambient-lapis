@@ -33,7 +33,7 @@ test.describe("dashboard states", () => {
       page.getByText(/最終取得から時間が経過しています/),
     ).toBeVisible();
     // Last known numbers stay on screen (large metric figure present).
-    await expect(page.locator(".metric-figure").first()).not.toHaveText("--");
+    await expect(page.locator(".hero-figure").first()).not.toHaveText("--");
   });
 
   test("remoOffline warns that values may not be current", async ({
@@ -85,7 +85,7 @@ test.describe("dashboard states", () => {
     await expect(
       page.getByText("一部のデータを取得できませんでした"),
     ).toBeVisible();
-    await expect(page.locator(".metric-figure").first()).toBeVisible();
+    await expect(page.locator(".hero-figure").first()).toBeVisible();
     await expect(
       page.getByText("エアコンの認識状態はまだ取得できていません。"),
     ).toBeVisible();
@@ -103,7 +103,7 @@ test.describe("dashboard states", () => {
 
     await setScenario(request, "normal");
     await page.getByRole("button", { name: "再試行" }).click();
-    await expect(page.locator(".metric-figure").first()).toBeVisible();
+    await expect(page.locator(".hero-figure").first()).toBeVisible();
     await expect(page.getByText(/収集正常/)).toBeVisible();
   });
 
@@ -114,7 +114,7 @@ test.describe("dashboard states", () => {
     await setScenario(request, "historyError");
     await page.goto("/");
     // Current values render normally.
-    await expect(page.locator(".metric-figure").first()).toBeVisible();
+    await expect(page.locator(".hero-figure").first()).toBeVisible();
     const history = page.getByRole("region", { name: "温度と湿度の履歴" });
     await expect(
       history.getByText("履歴データを取得できませんでした"),

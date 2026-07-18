@@ -47,13 +47,9 @@ for (const viewport of VIEWPORTS) {
     expect(historyBox).not.toBeNull();
     expect(airconBox).not.toBeNull();
     if (historyBox && airconBox) {
-      if (viewport.name === "mobile") {
-        // Mobile order (§9.2): history section above the aircon card.
-        expect(historyBox.y).toBeLessThan(airconBox.y);
-      } else {
-        // Tablet and desktop: aircon sits in the top row, history below.
-        expect(airconBox.y).toBeLessThan(historyBox.y);
-      }
+      // The aircon panel belongs to the "current" spread above the
+      // history block on every viewport.
+      expect(airconBox.y).toBeLessThan(historyBox.y);
     }
     expect(errors).toEqual([]);
   });

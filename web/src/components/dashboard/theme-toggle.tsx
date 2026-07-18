@@ -67,7 +67,7 @@ export function ThemeToggle(): ReactElement {
     <div
       role="radiogroup"
       aria-label="テーマ"
-      className="flex items-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-0.5"
+      className="flex items-center gap-1"
     >
       {OPTIONS.map((option, index) => {
         const selected = preference === option.value;
@@ -90,10 +90,10 @@ export function ThemeToggle(): ReactElement {
             onKeyDown={(event) => {
               onKeyDown(event, index);
             }}
-            className={`min-h-[36px] cursor-pointer rounded-full px-3.5 text-[0.8125rem] font-medium transition-colors duration-150 ease-out disabled:cursor-default ${
+            className={`min-h-[44px] cursor-pointer border-0 bg-transparent px-2 text-[0.8125rem] font-medium transition-colors duration-150 ease-out disabled:cursor-default ${
               selected
-                ? "bg-[var(--bg-surface)] text-[var(--accent-lapis)] shadow-[inset_0_0_0_1px_var(--border-subtle)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                ? "text-[var(--ink)] shadow-[inset_0_-2px_0_0_var(--ink)]"
+                : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
             }`}
           >
             {option.label}

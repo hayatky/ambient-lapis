@@ -53,7 +53,7 @@ flowchart LR
 
 ## Next.jsダッシュボードのローカル実行
 
-Node.js 24.18.0とnpmを使用します。`REMO_API_BASE_URL`はサーバー側だけで使用し、ブラウザへは公開しません。
+Node.js 24.18.0とnpmを使用します(`fnm`利用時はリポジトリ内のバージョン指定を読み込んでください)。`REMO_API_BASE_URL`はサーバー側だけで使用し、`NEXT_PUBLIC_`変数には設定しません。PlaywrightのChromiumが未導入の場合は、事前に`npx playwright install chromium`を実行してください。
 
 Goバックエンドへ接続する場合:
 
@@ -161,28 +161,3 @@ LIVE_NATURE_API=1 go test -tags=live -run '^TestLiveNatureAPIReadOnly$' ./intern
 ```
 
 レート制限の残量が10以下の場合は追加のlive検証を止め、reset時刻以降に再実行してください。CIにはtokenを登録せず、このlive testを通常テストへ含めません。
-
-## Next.jsフロントエンドのローカル実行
-
-Node.js 24.18.0とnpmを使用します。`fnm`を利用する場合は、リポジトリ内のバージョン指定を読み込んでから依存関係をインストールしてください。
-
-```bash
-cd web
-fnm use 24.18.0
-npm install
-npm run dev
-```
-
-開発サーバーは既定で`http://localhost:3000`に起動します。静的確認、単体テスト、production build、ブラウザsmoke testは次の順で実行します。
-
-```bash
-cd web
-npm run format:check
-npm run lint
-npm run typecheck
-npm test
-npm run build
-npm run test:e2e
-```
-
-PlaywrightのChromiumが未導入の場合は、事前に`npx playwright install chromium`を実行してください。`REMO_API_BASE_URL`はサーバー側だけで使用し、`NEXT_PUBLIC_`変数には設定しません。

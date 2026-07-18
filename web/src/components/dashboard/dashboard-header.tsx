@@ -1,56 +1,33 @@
 import type { ReactElement } from "react";
 
-import type { DashboardViewModel } from "@/lib/view-model";
-import { formatAge } from "@/lib/view-model/time";
-
-import { StatusDot } from "./icons";
 import { ThemeToggle } from "./theme-toggle";
 
-const STATE_LABELS: Record<DashboardViewModel["collectionState"], string> = {
-  initializing: "初回収集待ち",
-  healthy: "収集正常",
-  degraded: "一部取得失敗",
-  stopped: "収集停止",
-};
-
-const STATE_COLORS: Record<DashboardViewModel["collectionState"], string> = {
-  initializing: "text-[var(--text-secondary)]",
-  healthy: "text-[var(--success)]",
-  degraded: "text-[var(--warning)]",
-  stopped: "text-[var(--danger)]",
-};
+const headerDateFormatter = new Intl.DateTimeFormat("ja-JP", {
+  timeZone: "Asia/Tokyo",
+  month: "long",
+  day: "numeric",
+  weekday: "short",
+});
 
 interface DashboardHeaderProps {
-  collectionState: DashboardViewModel["collectionState"] | null;
-  lastFullSuccessAt: DashboardViewModel["lastFullSuccessAt"];
+  now: Date;
 }
 
-export function DashboardHeader({
-  collectionState,
-  lastFullSuccessAt,
-}: DashboardHeaderProps): ReactElement {
+// The folio's masthead: wordmark with a single pyrite fleck, today's
+// date (this is today's page of the observation log), theme control.
+export function DashboardHeader({ now }: DashboardHeaderProps): ReactElement {
   return (
-    <header className="flex flex-wrap items-center gap-x-6 gap-y-3">
-      <div className="flex flex-col gap-0.5">
-        <p className="m-0 text-xl leading-tight font-semibold tracking-tight text-[var(--text-primary)]">
-          Ambient Lapis
-        </p>
-        {collectionState === null ? (
-          <p className="m-0 text-[0.8125rem] text-[var(--text-secondary)]">
-            収集状態を取得できません
-          </p>
-        ) : (
-          <p className="m-0 flex items-center gap-1.5 text-[0.8125rem] text-[var(--text-secondary)]">
-            <StatusDot
-              className={`shrink-0 ${STATE_COLORS[collectionState]}`}
-            />
-            {STATE_LABELS[collectionState]}
-            {lastFullSuccessAt
-              ? ` ・ 最終取得 ${formatAge(lastFullSuccessAt.ageSeconds)}`
-              : ""}
-          </p>
-        )}
-      </div>
+    <header className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+      <p className="m-0 text-[1.0625rem] font-semibold tracking-[-0.01em] text-[var(--ink)]">
+        Ambient Lapis
+        <span
+          aria-hidden="true"
+          className="mb-[0.45em] ml-1.5 inline-block h-[5px] w-[5px] rounded-full bg-[var(--gold)] align-text-bottom"
+        />
+      </p>
+      <p className="m-0 text-[0.9375rem] text-[var(--ink-secondary)]">
+        {headerDateFormatter.format(now)}
+      </p>
       <div className="ml-auto">
         <ThemeToggle />
       </div>

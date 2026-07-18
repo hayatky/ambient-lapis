@@ -11,22 +11,29 @@ import type {
   EnvironmentSeriesViewModel,
 } from "@/lib/view-model";
 
+export interface ChartRange {
+  fromMs: number;
+  toMs: number;
+}
+
 interface EnvironmentChartProps {
   series: EnvironmentSeriesViewModel;
   airconSegments: AirconSegmentViewModel[];
+  range: ChartRange;
   ariaLabel: string;
 }
 
 // ECharts wrapper. Loaded lazily (next/dynamic, ssr disabled) from the
-// history section so the chart runtime never blocks the initial page.
+// history block so the chart runtime never blocks the initial page.
 export function EnvironmentChart({
   series,
   airconSegments,
+  range,
   ariaLabel,
 }: EnvironmentChartProps): ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<ReturnType<typeof echarts.init> | null>(null);
-  const inputRef = useRef({ series, airconSegments });
+  const inputRef = useRef({ series, airconSegments, range });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -44,6 +51,9 @@ export function EnvironmentChart({
         buildChartOption({
           series: inputRef.current.series,
           airconSegments: inputRef.current.airconSegments,
+          rangeFromMs: inputRef.current.range.fromMs,
+          rangeToMs: inputRef.current.range.toMs,
+          heightPx: container.clientHeight,
           tokens: readChartTokens(document.documentElement),
           pointerType: pointerCoarse.matches ? "coarse" : "fine",
           reducedMotion: reducedMotion.matches,
@@ -53,8 +63,11 @@ export function EnvironmentChart({
     };
     render();
 
+    // Panel layout depends on the container size, so a resize re-renders
+    // the option, not just the canvas.
     const resizeObserver = new ResizeObserver(() => {
       chart.resize();
+      render();
     });
     resizeObserver.observe(container);
 
@@ -90,15 +103,19 @@ export function EnvironmentChart({
 
   // Re-render when data changes (the init effect runs once).
   useEffect(() => {
-    inputRef.current = { series, airconSegments };
+    inputRef.current = { series, airconSegments, range };
     const chart = chartRef.current;
-    if (!chart) {
+    const container = containerRef.current;
+    if (!chart || !container) {
       return;
     }
     chart.setOption(
       buildChartOption({
         series,
         airconSegments,
+        rangeFromMs: range.fromMs,
+        rangeToMs: range.toMs,
+        heightPx: container.clientHeight,
         tokens: readChartTokens(document.documentElement),
         pointerType: window.matchMedia("(pointer: coarse)").matches
           ? "coarse"
@@ -108,14 +125,14 @@ export function EnvironmentChart({
       }),
       { notMerge: true },
     );
-  }, [series, airconSegments]);
+  }, [series, airconSegments, range]);
 
   return (
     <div
       ref={containerRef}
       role="img"
       aria-label={ariaLabel}
-      className="h-[320px] w-full sm:h-[360px] lg:h-[400px]"
+      className="h-[420px] w-full min-[900px]:h-[500px]"
     />
   );
 }

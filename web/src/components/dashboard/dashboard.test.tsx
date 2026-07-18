@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { DashboardInitialData } from "@/hooks/use-dashboard-data";
@@ -62,14 +62,22 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+// The hero splits its numerals into mixed-scale spans, so values are
+// asserted against the joined hero text.
+function heroText(): string {
+  return Array.from(document.querySelectorAll(".hero-figure"))
+    .map((element) => element.textContent ?? "")
+    .join(" ");
+}
+
 describe("Dashboard scenarios", () => {
   it("renders current values, aircon state and disclaimer in the normal state", () => {
     renderDashboard("normal");
 
-    expect(screen.getByText("26.4")).toBeInTheDocument();
-    expect(screen.getByText("58")).toBeInTheDocument();
-    expect(screen.getByText("運転中")).toBeInTheDocument();
-    expect(screen.getAllByText("冷房").length).toBeGreaterThan(0);
+    expect(heroText()).toContain("26.4");
+    expect(heroText()).toContain("58");
+    expect(screen.getAllByText(/運転中/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/冷房/).length).toBeGreaterThan(0);
     expect(
       screen.getByText(/エアコン本体との双方向確認ではありません/),
     ).toBeInTheDocument();
@@ -104,7 +112,7 @@ describe("Dashboard scenarios", () => {
     expect(
       screen.getByText("一部のデータを取得できませんでした"),
     ).toBeInTheDocument();
-    expect(screen.getByText("26.4")).toBeInTheDocument();
+    expect(heroText()).toContain("26.4");
     expect(
       screen.getByText("エアコンの認識状態はまだ取得できていません。"),
     ).toBeInTheDocument();
@@ -116,7 +124,7 @@ describe("Dashboard scenarios", () => {
     expect(
       screen.getByText("一部のデータを取得できませんでした"),
     ).toBeInTheDocument();
-    expect(screen.getByText("運転中")).toBeInTheDocument();
+    expect(screen.getAllByText(/運転中/).length).toBeGreaterThan(0);
     expect(
       screen.getByText("現在の計測値を表示できません"),
     ).toBeInTheDocument();
@@ -126,8 +134,8 @@ describe("Dashboard scenarios", () => {
     renderDashboard("collectionStopped");
 
     const banner = screen.getByText("データ収集が停止しています");
-    expect(banner.closest("p")).toHaveAttribute("data-severity", "danger");
-    expect(screen.getByText("26.4")).toBeInTheDocument();
+    expect(banner.closest("li")).toHaveAttribute("data-severity", "danger");
+    expect(heroText()).toContain("26.4");
     expect(
       screen.getByText(/最終取得から時間が経過しています/),
     ).toBeInTheDocument();
@@ -143,13 +151,13 @@ describe("Dashboard scenarios", () => {
         /Nature Remoがオフラインのため、現在値ではない可能性があります/,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("26.4")).toBeInTheDocument();
+    expect(heroText()).toContain("26.4");
   });
 
   it("marks a stale temperature without hiding the value", () => {
     renderDashboard("temperatureStale");
 
-    expect(screen.getByText("26.4")).toBeInTheDocument();
+    expect(heroText()).toContain("26.4");
     expect(
       screen.getAllByText(/温度の計測値が更新されていません/).length,
     ).toBeGreaterThan(0);
@@ -158,12 +166,15 @@ describe("Dashboard scenarios", () => {
   it("shows unknown aircon state without guessing on or off", () => {
     renderDashboard("airconUnknown");
 
-    expect(screen.getByText("不明")).toBeInTheDocument();
+    const aircon = screen.getByRole("region", {
+      name: "エアコン - Nature Remo認識状態",
+    });
+    expect(within(aircon).getAllByText(/不明/).length).toBeGreaterThan(0);
     expect(
       screen.getByText("エアコンの認識状態が不明です"),
     ).toBeInTheDocument();
-    expect(screen.queryByText("運転中")).not.toBeInTheDocument();
-    expect(screen.queryByText("停止")).not.toBeInTheDocument();
+    expect(within(aircon).queryByText(/運転中/)).not.toBeInTheDocument();
+    expect(within(aircon).queryByText("停止")).not.toBeInTheDocument();
   });
 
   it("shows the raw value for an unknown aircon mode", () => {
@@ -199,7 +210,9 @@ describe("Dashboard error handling", () => {
     await user.click(screen.getByRole("button", { name: "再試行" }));
     expect(statusMock).toHaveBeenCalledTimes(1);
     expect(currentMock).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText("26.4")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(heroText()).toContain("26.4");
+    });
   });
 
   it("shows an in-card error with retry while keeping history", async () => {
@@ -211,8 +224,10 @@ describe("Dashboard error handling", () => {
       screen.getByText("最新の値を取得できませんでした"),
     ).toBeInTheDocument();
     // The last known values and the history section stay visible.
-    expect(screen.getByText("26.4")).toBeInTheDocument();
-    expect(screen.getByText("温度と湿度の推移")).toBeInTheDocument();
+    expect(heroText()).toContain("26.4");
+    expect(
+      screen.getByRole("region", { name: "温度と湿度の履歴" }),
+    ).toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "再試行" }));
@@ -238,7 +253,7 @@ describe("Dashboard error handling", () => {
     expect(
       within(history).getByText("履歴データを取得できませんでした"),
     ).toBeInTheDocument();
-    expect(screen.getByText("26.4")).toBeInTheDocument();
+    expect(heroText()).toContain("26.4");
 
     const user = userEvent.setup();
     await user.click(within(history).getByRole("button", { name: "再試行" }));

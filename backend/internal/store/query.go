@@ -104,8 +104,6 @@ func rawEnvironmentPoints(samples []EnvironmentSample, staleAfter time.Duration)
 			fetched := sample.FetchedAt
 			previous = &fetched
 		}
-		point.Stale = valueObservationStale(sample.FetchedAt, sample.TemperatureC, sample.TemperatureObservedAt, staleAfter) ||
-			valueObservationStale(sample.FetchedAt, sample.HumidityPct, sample.HumidityObservedAt, staleAfter)
 		points = append(points, point)
 	}
 	return points
@@ -128,7 +126,7 @@ func aggregateEnvironmentPoints(samples []EnvironmentSample, query SeriesQuery) 
 			}
 			index++
 		}
-		point := aggregateBucket(bucketStart, bucket, query.StaleAfter)
+		point := aggregateBucket(bucketStart, bucket)
 		for _, sample := range bucket {
 			if !sampleHasValue(sample) {
 				continue
@@ -173,7 +171,7 @@ func bucketFunctions(query SeriesQuery) (time.Time, time.Duration, func(time.Tim
 	}
 }
 
-func aggregateBucket(at time.Time, samples []EnvironmentSample, staleAfter time.Duration) EnvironmentPoint {
+func aggregateBucket(at time.Time, samples []EnvironmentSample) EnvironmentPoint {
 	hasValue := false
 	for _, sample := range samples {
 		if sampleHasValue(sample) {
@@ -184,11 +182,6 @@ func aggregateBucket(at time.Time, samples []EnvironmentSample, staleAfter time.
 	point := EnvironmentPoint{Time: at.UTC(), Gap: !hasValue, RemoOnlineState: aggregateOnline(samples)}
 	point.Temperature = statsFor(samples, func(s EnvironmentSample) (*float64, *time.Time) { return s.TemperatureC, s.TemperatureObservedAt })
 	point.Humidity = statsFor(samples, func(s EnvironmentSample) (*float64, *time.Time) { return s.HumidityPct, s.HumidityObservedAt })
-	for _, sample := range samples {
-		if valueObservationStale(sample.FetchedAt, sample.TemperatureC, sample.TemperatureObservedAt, staleAfter) || valueObservationStale(sample.FetchedAt, sample.HumidityPct, sample.HumidityObservedAt, staleAfter) {
-			point.Stale = true
-		}
-	}
 	return point
 }
 
@@ -334,20 +327,25 @@ func (s *Store) DailySummary(ctx context.Context, query RangeQuery) ([]DailySumm
 	var summaries []DailySummary
 	for day := start; day.Before(end); day = day.AddDate(0, 0, 1) {
 		dayEnd := day.AddDate(0, 0, 1)
+		periodStart := maxTime(day, query.From)
+		periodEnd := minTime(dayEnd, query.To)
+		if !periodStart.Before(periodEnd) {
+			continue
+		}
 		var inDay []EnvironmentSample
 		var coverageSamples []EnvironmentSample
 		for _, sample := range samples {
-			if !sample.FetchedAt.Before(day) && sample.FetchedAt.Before(dayEnd) {
+			if !sample.FetchedAt.Before(periodStart) && sample.FetchedAt.Before(periodEnd) {
 				inDay = append(inDay, sample)
 			}
-			if sample.FetchedAt.Add(query.StaleAfter).After(day) && sample.FetchedAt.Before(dayEnd) {
+			if sample.FetchedAt.Add(query.StaleAfter).After(periodStart) && sample.FetchedAt.Before(periodEnd) {
 				coverageSamples = append(coverageSamples, sample)
 			}
 		}
 		summaries = append(summaries, DailySummary{Date: day.Format("2006-01-02"),
 			Temperature: statsFor(inDay, func(s EnvironmentSample) (*float64, *time.Time) { return s.TemperatureC, s.TemperatureObservedAt }),
 			Humidity:    statsFor(inDay, func(s EnvironmentSample) (*float64, *time.Time) { return s.HumidityPct, s.HumidityObservedAt }),
-			GapMinutes:  gapMinutes(coverageSamples, day, dayEnd, query.StaleAfter)})
+			GapMinutes:  gapMinutes(coverageSamples, periodStart, periodEnd, query.StaleAfter)})
 		if len(summaries) > maxQueryResults {
 			return nil, errors.New("result too large")
 		}
@@ -529,12 +527,6 @@ func aggregateOnline(samples []EnvironmentSample) string {
 		return "mixed"
 	}
 	return "unknown"
-}
-func observationStale(fetched time.Time, observed *time.Time, threshold time.Duration) bool {
-	return observed == nil || fetched.Sub(*observed) > threshold
-}
-func valueObservationStale(fetched time.Time, value *float64, observed *time.Time, threshold time.Duration) bool {
-	return value != nil && observationStale(fetched, observed, threshold)
 }
 func sampleHasValue(sample EnvironmentSample) bool {
 	return validFloat(sample.TemperatureC) || validFloat(sample.HumidityPct)

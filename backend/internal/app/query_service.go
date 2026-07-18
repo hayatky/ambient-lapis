@@ -78,8 +78,8 @@ func (s *QueryService) Current(ctx context.Context, now time.Time) (httpapi.Curr
 	data := httpapi.CurrentData{Freshness: httpapi.Freshness{LastFullSuccessAt: timeString(status.LastFullSuccessAt), CollectionStopped: status.LastFullSuccessAt == nil || now.Sub(*status.LastFullSuccessAt) > s.options.StaleAfter}}
 	if value := snapshot.Environment; value != nil {
 		data.Environment = &httpapi.CurrentEnvironment{FetchedAt: formatUTC(value.FetchedAt), RemoOnline: value.Online,
-			Temperature: httpapi.CurrentTemperature{ValueC: value.TemperatureC, ObservedAt: timeString(value.TemperatureObservedAt), Stale: isStale(now, value.TemperatureObservedAt, s.options.StaleAfter)},
-			Humidity:    httpapi.CurrentHumidity{ValuePct: value.HumidityPct, ObservedAt: timeString(value.HumidityObservedAt), Stale: isStale(now, value.HumidityObservedAt, s.options.StaleAfter)}}
+			Temperature: httpapi.CurrentTemperature{ValueC: value.TemperatureC, ObservedAt: timeString(value.TemperatureObservedAt)},
+			Humidity:    httpapi.CurrentHumidity{ValuePct: value.HumidityPct, ObservedAt: timeString(value.HumidityObservedAt)}}
 	}
 	if value := snapshot.Aircon; value != nil {
 		mode := ""
@@ -109,7 +109,7 @@ func (s *QueryService) EnvironmentSeries(ctx context.Context, query httpapi.Seri
 	}
 	result := make([]httpapi.EnvironmentPoint, 0, len(points))
 	for _, point := range points {
-		item := httpapi.EnvironmentPoint{Time: formatUTC(point.Time), RemoOnlineState: point.RemoOnlineState, Gap: point.Gap, Stale: point.Stale}
+		item := httpapi.EnvironmentPoint{Time: formatUTC(point.Time), RemoOnlineState: point.RemoOnlineState, Gap: point.Gap}
 		if resolution == store.ResolutionRaw {
 			item.Temperature = httpapi.RawSeriesMetric{Value: point.TemperatureValue, ObservedAt: timeString(point.TemperatureAt)}
 			item.Humidity = httpapi.RawSeriesMetric{Value: point.HumidityValue, ObservedAt: timeString(point.HumidityAt)}
@@ -193,9 +193,6 @@ func timeString(value *time.Time) *string {
 	return &text
 }
 func formatUTC(value time.Time) string { return value.UTC().Format(time.RFC3339Nano) }
-func isStale(now time.Time, observed *time.Time, threshold time.Duration) bool {
-	return observed == nil || now.Sub(*observed) > threshold
-}
 func resultTooLarge() error {
 	return &httpapi.ServiceError{Code: "result_too_large", Message: "result exceeds 10000 items", Status: http.StatusUnprocessableEntity}
 }

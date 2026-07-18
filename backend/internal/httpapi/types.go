@@ -89,13 +89,11 @@ type CurrentEnvironment struct {
 type CurrentTemperature struct {
 	ValueC     *float64 `json:"valueC"`
 	ObservedAt *string  `json:"observedAt"`
-	Stale      bool     `json:"stale"`
 }
 
 type CurrentHumidity struct {
 	ValuePct   *float64 `json:"valuePct"`
 	ObservedAt *string  `json:"observedAt"`
-	Stale      bool     `json:"stale"`
 }
 
 type CurrentAircon struct {
@@ -139,7 +137,6 @@ type EnvironmentPoint struct {
 	Humidity        any    `json:"humidity"`
 	RemoOnlineState string `json:"remoOnlineState"`
 	Gap             bool   `json:"gap"`
-	Stale           bool   `json:"stale"`
 }
 
 // SeriesMetric supports both the raw (value, observedAt) and aggregated

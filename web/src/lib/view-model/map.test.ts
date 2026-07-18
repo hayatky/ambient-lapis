@@ -38,8 +38,8 @@ describe("view model mapping", () => {
       environment: fixture.current.data.environment
         ? {
             ...fixture.current.data.environment,
-            temperature: { valueC: null, observedAt: null, stale: true },
-            humidity: { valuePct: null, observedAt: null, stale: true },
+            temperature: { valueC: null, observedAt: null },
+            humidity: { valuePct: null, observedAt: null },
           }
         : null,
     };
@@ -76,14 +76,8 @@ describe("view model mapping", () => {
           ? {
               ...fixture.current.data.environment,
               remoOnline: false,
-              temperature: {
-                ...fixture.current.data.environment.temperature,
-                stale: true,
-              },
-              humidity: {
-                ...fixture.current.data.environment.humidity,
-                stale: true,
-              },
+              temperature: fixture.current.data.environment.temperature,
+              humidity: fixture.current.data.environment.humidity,
             }
           : null,
         aircon: fixture.current.data.aircon
@@ -95,8 +89,6 @@ describe("view model mapping", () => {
       "collectionStopped",
       "remoOffline",
       "partialFailure",
-      "temperatureStale",
-      "humidityStale",
       "airconUnknown",
     ]);
   });
@@ -161,7 +153,6 @@ describe("view model mapping", () => {
     const rawModel = mapEnvironmentSeries(raw, now);
     expect(rawModel.points[1]).toMatchObject({
       gap: true,
-      stale: true,
       temperature: { value: null },
       humidity: { value: null },
     });

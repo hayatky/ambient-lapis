@@ -137,7 +137,6 @@ type EnvironmentPoint struct {
 	HumidityAt       *time.Time
 	RemoOnlineState  string
 	Gap              bool
-	Stale            bool
 }
 
 type RangeQuery struct {

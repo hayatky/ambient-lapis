@@ -5,8 +5,6 @@ import type {
   CurrentMetricViewModel,
   DailySummaryViewModel,
 } from "@/lib/view-model";
-import { formatAge } from "@/lib/view-model/time";
-
 import { WarningIcon } from "./icons";
 
 interface CurrentHeroProps {
@@ -58,7 +56,6 @@ export function CurrentHero({
               unit="°C"
               scaleClass="text-[clamp(4rem,11vw,7rem)]"
               dimmed={dimmed}
-              staleTitle="温度の計測値が更新されていません"
             />
             <HeroFigure
               name="湿度"
@@ -67,7 +64,6 @@ export function CurrentHero({
               unit="%"
               scaleClass="text-[clamp(2.125rem,5vw,3.25rem)]"
               dimmed={dimmed}
-              staleTitle="湿度の計測値が更新されていません"
             />
           </div>
           {todaySummary?.temperature ? (
@@ -127,7 +123,6 @@ function HeroFigure({
   unit,
   scaleClass,
   dimmed,
-  staleTitle,
 }: {
   name: string;
   seriesColor: string;
@@ -135,7 +130,6 @@ function HeroFigure({
   unit: string;
   scaleClass: string;
   dimmed: boolean;
-  staleTitle: string;
 }): ReactElement {
   const [integerPart, decimalPart] = metric.displayValue.split(".");
   const inkClass = dimmed ? "text-[var(--ink-secondary)]" : "text-[var(--ink)]";
@@ -163,15 +157,6 @@ function HeroFigure({
         </span>
       </p>
       <div className="flex flex-col gap-0.5 text-[0.8125rem] leading-normal">
-        {metric.stale ? (
-          <p className="m-0 flex items-center gap-1.5 font-medium text-[var(--warning)]">
-            <WarningIcon className="shrink-0" />
-            {staleTitle}
-            {metric.observedAt
-              ? `(${formatAge(metric.observedAt.ageSeconds)})`
-              : ""}
-          </p>
-        ) : null}
         <p className="m-0 text-[var(--ink-muted)]">
           {metric.observedAt
             ? `計測時刻 ${metric.observedAt.label}`

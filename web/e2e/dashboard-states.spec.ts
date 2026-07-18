@@ -48,18 +48,14 @@ test.describe("dashboard states", () => {
     ).toBeVisible();
   });
 
-  test("temperatureStale marks only the stale metric", async ({
+  test("unchanged readings remain neutral and keep their observation time", async ({
     page,
     request,
   }) => {
-    await setScenario(request, "temperatureStale");
+    await setScenario(request, "unchangedReadings");
     await page.goto("/");
-    await expect(
-      page.getByText("温度の計測値が更新されていません").first(),
-    ).toBeVisible();
-    await expect(
-      page.getByText("湿度の計測値が更新されていません"),
-    ).toHaveCount(0);
+    await expect(page.getByText(/計測値が更新されていません/)).toHaveCount(0);
+    await expect(page.getByText(/計測時刻/).first()).toBeVisible();
   });
 
   test("airconUnknown never guesses on or off", async ({ page, request }) => {

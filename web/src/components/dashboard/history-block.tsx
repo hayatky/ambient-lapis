@@ -41,7 +41,7 @@ export function HistoryBlock({
   error,
   onRetry,
 }: HistoryBlockProps): ReactElement {
-  const summary = series ? summarizeSeries(series) : null;
+  const summary = series ? summarizeSeries(series, airconSegments) : null;
 
   return (
     <section aria-label="温度と湿度の履歴" className="flex flex-col gap-4">
@@ -73,9 +73,16 @@ export function HistoryBlock({
             series={series}
             airconSegments={airconSegments}
             range={range}
-            ariaLabel="温度と湿度の履歴グラフ。詳細は下のテキスト要約を参照してください。"
+            ariaLabel="温度と湿度の履歴グラフ。運転中のNature Remo認識設定温度を温度パネルに重ねています。詳細は下のテキスト要約を参照してください。"
           />
           <p className="m-0 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.6875rem] text-[var(--ink-muted)]">
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="inline-block w-4 border-t border-dashed border-[var(--ink-muted)] opacity-70"
+              />
+              Nature Remo認識設定温度(運転中のみ)
+            </span>
             <span className="inline-flex items-center gap-1.5">
               <span
                 aria-hidden="true"

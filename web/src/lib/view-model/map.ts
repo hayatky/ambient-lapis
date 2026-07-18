@@ -88,22 +88,6 @@ export function mapWarnings(
       detail: "取得できた領域はそのまま表示しています。",
     });
   }
-  if (current.environment?.temperature.stale === true) {
-    warnings.push({
-      code: "temperatureStale",
-      severity: "warning",
-      title: "温度の計測値が更新されていません",
-      detail: "最後に観測できた温度を表示しています。",
-    });
-  }
-  if (current.environment?.humidity.stale === true) {
-    warnings.push({
-      code: "humidityStale",
-      severity: "warning",
-      title: "湿度の計測値が更新されていません",
-      detail: "最後に観測できた湿度を表示しています。",
-    });
-  }
   if (current.aircon?.recognitionState === "unknown") {
     warnings.push({
       code: "airconUnknown",
@@ -134,7 +118,6 @@ export function mapCurrentEnvironment(
       observedAt: environment.temperature.observedAt
         ? toDisplayTimestamp(environment.temperature.observedAt, now)
         : null,
-      stale: environment.temperature.stale,
     },
     humidity: {
       value: environment.humidity.valuePct,
@@ -146,7 +129,6 @@ export function mapCurrentEnvironment(
       observedAt: environment.humidity.observedAt
         ? toDisplayTimestamp(environment.humidity.observedAt, now)
         : null,
-      stale: environment.humidity.stale,
     },
   };
 }
@@ -200,7 +182,6 @@ export function mapEnvironmentSeries(
         ),
         remoOnlineState: point.remoOnlineState,
         gap: point.gap,
-        stale: point.stale,
       })),
     };
   }
@@ -228,7 +209,6 @@ export function mapEnvironmentSeries(
       },
       remoOnlineState: point.remoOnlineState,
       gap: point.gap,
-      stale: point.stale,
     })),
   };
 }

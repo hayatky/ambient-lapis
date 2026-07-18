@@ -2,8 +2,6 @@ export type WarningCode =
   | "collectionStopped"
   | "remoOffline"
   | "partialFailure"
-  | "temperatureStale"
-  | "humidityStale"
   | "airconUnknown";
 
 export interface DashboardWarning {
@@ -25,7 +23,6 @@ export interface CurrentMetricViewModel {
   displayValue: string;
   unit: "°C" | "%";
   observedAt: DisplayTimestamp | null;
-  stale: boolean;
 }
 
 export interface CurrentEnvironmentViewModel {
@@ -64,7 +61,6 @@ export interface EnvironmentChartPointViewModel {
   humidity: ChartMetricViewModel;
   remoOnlineState: "online" | "offline" | "mixed" | "unknown";
   gap: boolean;
-  stale: boolean;
 }
 
 export interface EnvironmentSeriesViewModel {

@@ -48,6 +48,25 @@ func TestQueryServiceStatusFreshnessBoundary(t *testing.T) {
 	}
 }
 
+func TestQueryServiceCurrentTreatsOldObservationAsNormalWhenCollectionIsFresh(t *testing.T) {
+	now := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
+	observed := now.Add(-40 * time.Minute)
+	value := 26.2
+	online := true
+	stub := &queryStoreStub{
+		status: store.StatusSnapshot{LastFullSuccessAt: &now},
+		current: store.CurrentSnapshot{Environment: &store.EnvironmentSample{
+			FetchedAt: now, Online: &online, TemperatureC: &value,
+			TemperatureObservedAt: &observed,
+		}},
+	}
+	service := NewQueryService(QueryOptions{Store: stub, StaleAfter: 10 * time.Minute})
+	data, err := service.Current(context.Background(), now)
+	if err != nil || data.Environment == nil || data.Environment.Temperature.ValueC == nil || data.Freshness.CollectionStopped {
+		t.Fatalf("old unchanged observation should stay normal: data=%+v err=%v", data, err)
+	}
+}
+
 func TestQueryServiceAutoResolutionBoundaries(t *testing.T) {
 	stub := &queryStoreStub{}
 	service := NewQueryService(QueryOptions{Store: stub, DeviceID: "device", StaleAfter: 10 * time.Minute, Location: time.UTC})

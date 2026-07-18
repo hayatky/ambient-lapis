@@ -61,12 +61,10 @@ const normalEnvironment: NonNullable<CurrentData["environment"]> = {
   temperature: {
     valueC: 26.4,
     observedAt: "2026-07-18T12:31:42.000Z",
-    stale: false,
   },
   humidity: {
     valuePct: 58,
     observedAt: "2026-07-18T12:31:45.000Z",
-    stale: false,
   },
 };
 
@@ -100,7 +98,6 @@ export const rawEnvironmentSeriesFixture: EnvironmentSeriesResponse = success(
         humidity: { value: 57, observedAt: "2026-07-18T12:24:42.000Z" },
         remoOnlineState: "online",
         gap: false,
-        stale: false,
       },
       {
         time: "2026-07-18T12:30:00.000Z",
@@ -108,7 +105,6 @@ export const rawEnvironmentSeriesFixture: EnvironmentSeriesResponse = success(
         humidity: { value: null, observedAt: null },
         remoOnlineState: "unknown",
         gap: true,
-        stale: true,
       },
     ],
   },
@@ -138,7 +134,6 @@ export const aggregateEnvironmentSeriesFixture: EnvironmentSeriesResponse =
           },
           remoOnlineState: "mixed",
           gap: false,
-          stale: false,
         },
       ],
     },
@@ -278,18 +273,18 @@ export const fixtureScenarios = {
     ...normalCurrent,
     environment: { ...normalEnvironment, remoOnline: false },
   }),
-  temperatureStale: scenario(healthyStatus, {
+  unchangedReadings: scenario(healthyStatus, {
     ...normalCurrent,
     environment: {
       ...normalEnvironment,
-      temperature: { ...normalEnvironment.temperature, stale: true },
-    },
-  }),
-  humidityStale: scenario(healthyStatus, {
-    ...normalCurrent,
-    environment: {
-      ...normalEnvironment,
-      humidity: { ...normalEnvironment.humidity, stale: true },
+      temperature: {
+        ...normalEnvironment.temperature,
+        observedAt: "2026-07-18T11:55:00.000Z",
+      },
+      humidity: {
+        ...normalEnvironment.humidity,
+        observedAt: "2026-07-18T11:55:00.000Z",
+      },
     },
   }),
   airconUnknown: scenario(healthyStatus, {

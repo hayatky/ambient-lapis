@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 const TICK_MS = 30_000;
 
-// Current time for age/staleness display. Starts from the server-provided
+// Current time for relative-age display. Starts from the server-provided
 // timestamp so SSR HTML and hydration render identically, then switches to
 // the real clock after mount and ticks every 30 seconds.
 export function useNow(serverNowIso: string): Date {

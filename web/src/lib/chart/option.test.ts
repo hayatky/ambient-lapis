@@ -6,6 +6,7 @@ import {
   computePanelLayout,
   humidityAxisBounds,
   summarizeSeries,
+  targetTemperatureLineData,
 } from "./option";
 import { FALLBACK_TOKENS, withAlpha } from "./tokens";
 
@@ -55,14 +56,17 @@ function seriesOf(option: ReturnType<typeof build>): LineSeries[] {
 describe("buildChartOption", () => {
   it("stacks temperature and humidity on separate grids (no dual axis)", () => {
     const option = build();
-    const [temperature, humidity, ribbon] = seriesOf(option);
+    const [temperature, humidity, targetTemperature, ribbon] = seriesOf(option);
     expect(temperature?.type).toBe("line");
     expect(humidity?.type).toBe("line");
+    expect(targetTemperature?.type).toBe("line");
     expect(ribbon?.type).toBe("custom");
     expect(temperature?.xAxisIndex).toBe(0);
     expect(temperature?.yAxisIndex).toBe(0);
     expect(humidity?.xAxisIndex).toBe(1);
     expect(humidity?.yAxisIndex).toBe(1);
+    expect(targetTemperature?.xAxisIndex).toBe(0);
+    expect(targetTemperature?.yAxisIndex).toBe(0);
     expect(ribbon?.xAxisIndex).toBe(2);
     expect((option.grid as unknown[]).length).toBe(3);
   });
@@ -89,7 +93,7 @@ describe("buildChartOption", () => {
 
   it("paints ribbon segments only for on and unknown states", () => {
     const option = build();
-    const ribbon = seriesOf(option)[2] as unknown as {
+    const ribbon = seriesOf(option)[3] as unknown as {
       data: { value: [number, number, number] }[];
     };
     // fixture has one on segment and one gap segment: only on is painted.
@@ -100,16 +104,28 @@ describe("buildChartOption", () => {
     );
   });
 
-  it("marks stale points with a hollow warning marker", () => {
+  it("renders unchanged readings without warning marker objects", () => {
     const option = build();
     const [temperature] = seriesOf(option);
-    const staleItem = temperature?.data.find(
-      (item): item is { itemStyle: { borderColor: string } } =>
-        typeof item === "object" && item !== null && "itemStyle" in item,
-    );
-    // The fixture gap point is also stale but carries no value, so no
-    // marker; a stale marker appears only on points with values.
-    expect(staleItem).toBeUndefined();
+    expect(temperature?.data.every(Array.isArray)).toBe(true);
+  });
+
+  it("draws a subtle target-temperature line only for recognized on segments", () => {
+    const option = build();
+    const target = seriesOf(option)[2] as LineSeries & {
+      connectNulls: boolean;
+      showSymbol: boolean;
+      lineStyle: { type: string; width: number };
+    };
+    expect(target.name).toBe("Nature Remo認識設定温度");
+    expect(target.connectNulls).toBe(false);
+    expect(target.showSymbol).toBe(false);
+    expect(target.lineStyle).toMatchObject({ type: "dashed", width: 1.25 });
+    expect(target.data).toEqual([
+      [Date.parse("2026-07-18T12:00:00.000Z"), 26],
+      [Date.parse("2026-07-18T12:30:00.000Z"), 26],
+      [Date.parse("2026-07-18T12:30:00.000Z"), null],
+    ]);
   });
 
   it("disables animation under reduced motion", () => {
@@ -156,6 +172,8 @@ describe("buildChartOption", () => {
     expect(html).toContain("57%");
     expect(html).toContain("Remo: オンライン");
     expect(html).toContain("エアコン認識: 運転中");
+    expect(html).toContain("認識設定温度");
+    expect(html).toContain("室温−設定 +0.1°C");
   });
 
   it("reports gaps honestly in the tooltip", () => {
@@ -202,12 +220,56 @@ describe("summarizeSeries", () => {
     expect(summary.temperature?.maximum).toBe(26.1);
     expect(summary.temperature?.latest).toBe(26.1);
     expect(summary.humidity?.latest).toBe(57);
+    expect(summary.targetTemperature).toBeNull();
+  });
+
+  it("summarizes the latest recognized target and room delta", () => {
+    const summary = summarizeSeries(rawSeries, segments);
+    expect(summary.targetTemperature).toMatchObject({
+      latest: 26,
+      roomDelta: 0.1,
+      roomValueKind: "室温",
+    });
   });
 
   it("returns null metrics when the range has no valid values", () => {
     const empty = summarizeSeries({ resolution: "raw", points: [] });
     expect(empty.temperature).toBeNull();
     expect(empty.humidity).toBeNull();
+  });
+});
+
+describe("targetTemperatureLineData", () => {
+  it("clips on segments and excludes off, unknown, gaps, and null targets", () => {
+    const from = Date.parse("2026-07-18T12:05:00.000Z");
+    const to = Date.parse("2026-07-18T12:45:00.000Z");
+    const base = segments[0];
+    if (!base) throw new Error("fixture segment missing");
+    const data = targetTemperatureLineData(
+      [
+        base,
+        {
+          ...base,
+          from: { ...base.from, epochMs: Date.parse("2026-07-18T12:30:00Z") },
+          to: { ...base.to, epochMs: Date.parse("2026-07-18T12:40:00Z") },
+          state: "off",
+          targetTemperatureC: 24,
+        },
+        {
+          ...base,
+          from: { ...base.from, epochMs: Date.parse("2026-07-18T12:40:00Z") },
+          to: { ...base.to, epochMs: Date.parse("2026-07-18T12:50:00Z") },
+          targetTemperatureC: null,
+        },
+      ],
+      from,
+      to,
+    );
+    expect(data).toEqual([
+      [from, 26],
+      [Date.parse("2026-07-18T12:30:00.000Z"), 26],
+      [Date.parse("2026-07-18T12:30:00.000Z"), null],
+    ]);
   });
 });
 

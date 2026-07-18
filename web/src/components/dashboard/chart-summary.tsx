@@ -34,6 +34,22 @@ export function ChartSummary({ summary }: ChartSummaryProps): ReactElement {
       ) : (
         <p className="m-0">湿度: この期間に有効な値はありません</p>
       )}
+      {summary.targetTemperature ? (
+        <p className="m-0">
+          Nature Remo認識設定温度: 最新{" "}
+          {summary.targetTemperature.latest.toFixed(1)}°C(
+          {summary.targetTemperature.latestAt})
+          {summary.targetTemperature.roomDelta === null
+            ? ""
+            : ` ・ ${summary.targetTemperature.roomValueKind}−設定 ${
+                summary.targetTemperature.roomDelta >= 0 ? "+" : ""
+              }${summary.targetTemperature.roomDelta.toFixed(1)}°C`}
+        </p>
+      ) : (
+        <p className="m-0">
+          Nature Remo認識設定温度: この期間に運転中の値はありません
+        </p>
+      )}
     </div>
   );
 }

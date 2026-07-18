@@ -154,13 +154,14 @@ describe("Dashboard scenarios", () => {
     expect(heroText()).toContain("26.4");
   });
 
-  it("marks a stale temperature without hiding the value", () => {
-    renderDashboard("temperatureStale");
+  it("treats unchanged readings as normal while keeping observation times", () => {
+    renderDashboard("unchangedReadings");
 
     expect(heroText()).toContain("26.4");
     expect(
-      screen.getAllByText(/温度の計測値が更新されていません/).length,
-    ).toBeGreaterThan(0);
+      screen.queryByText(/計測値が更新されていません/),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByText(/計測時刻/).length).toBeGreaterThan(0);
   });
 
   it("shows unknown aircon state without guessing on or off", () => {

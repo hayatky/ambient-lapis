@@ -198,7 +198,7 @@ docs/
 - `any`、非検証のtype assertion、無差別なnon-null assertionを避ける。
 - Server ComponentとClient Componentの境界を明示し、EChartsなどブラウザ依存処理だけをClient Componentへ置く。
 - 現在値と状態は`no-store`、履歴は設計書の短いcache方針を守る。
-- loading、empty、partial error、stopped、offline、stale、unknown、gapを個別に実装・テストする。
+- loading、empty、partial error、stopped、offline、値未更新、unknown、gapを個別に実装・テストする。値未更新は計測時刻の経過だけでwarningにしない。
 - 色だけに依存せず、キーボード、タッチ、`prefers-reduced-motion`、WCAG AA相当を確認する。
 - APIの実値をUIコンポーネントへ直結させず、表示モデルへ変換する。
 
@@ -231,7 +231,7 @@ docs/
 
 - API responseのparseと表示モデル変換
 - 現在温度、湿度、Nature Remo認識状態
-- loading、dataなし、API error、partial、stopped、offline、stale、unknown、gap
+- loading、dataなし、API error、partial、stopped、offline、値未更新、unknown、gap
 - 24時間、7日、30日、任意期間の切替
 - ライト / ダークテーマ
 - キーボード、タッチ、reduced motion、アクセシビリティ

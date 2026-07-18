@@ -1,6 +1,6 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
-export const MOCK_API_URL = "http://127.0.0.1:8090";
+export const MOCK_API_URL = `http://127.0.0.1:${process.env.E2E_MOCK_PORT ?? "8090"}`;
 
 export type ScenarioName =
   | "normal"
@@ -10,8 +10,7 @@ export type ScenarioName =
   | "partialAirconOnly"
   | "collectionStopped"
   | "remoOffline"
-  | "temperatureStale"
-  | "humidityStale"
+  | "unchangedReadings"
   | "airconUnknown"
   | "unknownAirconMode"
   | "fullError"

@@ -22,6 +22,9 @@ async function expectCoreContent(page: Page): Promise<void> {
   await expect(page.locator("canvas").first()).toBeVisible({
     timeout: 15_000,
   });
+  await expect(
+    page.getByText("Nature Remo認識設定温度(運転中のみ)"),
+  ).toBeVisible();
 }
 
 for (const viewport of VIEWPORTS) {

@@ -308,15 +308,46 @@ func TestEnvironmentSeriesRawAndBuckets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(raw) != 3 || !raw[2].Gap || !raw[2].Stale || raw[1].RemoOnlineState != "offline" {
+	if len(raw) != 3 || !raw[2].Gap || raw[1].RemoOnlineState != "offline" {
 		t.Fatalf("unexpected raw points: %#v", raw)
 	}
 	buckets, err := s.EnvironmentSeries(ctx, SeriesQuery{DeviceID: "device", From: base, To: base.Add(time.Hour), Resolution: Resolution15m, StaleAfter: 10 * time.Minute})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(buckets) != 4 || buckets[0].Temperature.SampleCount != 2 || math.Abs(*buckets[0].Temperature.Avg-21) > 0.001 || buckets[0].RemoOnlineState != "mixed" || !buckets[1].Gap || !buckets[2].Stale {
+	if len(buckets) != 4 || buckets[0].Temperature.SampleCount != 2 || math.Abs(*buckets[0].Temperature.Avg-21) > 0.001 || buckets[0].RemoOnlineState != "mixed" || !buckets[1].Gap {
 		t.Fatalf("unexpected buckets: %#v", buckets)
+	}
+}
+
+func TestEnvironmentSeriesKeepsUnchangedSuccessfulSamplesWithoutGap(t *testing.T) {
+	s := openTestStore(t)
+	ctx := context.Background()
+	base := time.Date(2026, 7, 18, 0, 0, 0, 0, time.UTC)
+	temperature := 26.2
+	humidity := 58.0
+	observed := base
+	for i := 0; i < 3; i++ {
+		fetched := base.Add(time.Duration(i*5) * time.Minute)
+		run, err := s.StartCollectionRun(ctx, fetched)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.SaveEnvironment(ctx, EnvironmentSample{RunID: run, DeviceID: "device", FetchedAt: fetched,
+			TemperatureC: &temperature, TemperatureObservedAt: &observed,
+			HumidityPct: &humidity, HumidityObservedAt: &observed}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	points, err := s.EnvironmentSeries(ctx, SeriesQuery{DeviceID: "device", From: base,
+		To: base.Add(15 * time.Minute), Resolution: ResolutionRaw, StaleAfter: 10 * time.Minute})
+	if err != nil || len(points) != 3 {
+		t.Fatalf("points=%#v err=%v", points, err)
+	}
+	for _, point := range points {
+		if point.Gap || point.TemperatureAt == nil || !point.TemperatureAt.Equal(observed) {
+			t.Fatalf("unchanged successful sample was not preserved normally: %#v", point)
+		}
 	}
 }
 
@@ -441,7 +472,7 @@ func TestDailySummaryUsesTokyoCalendarAndGap(t *testing.T) {
 	}
 	day := time.Date(2026, 7, 18, 0, 0, 0, 0, tokyo)
 	for i, temp := range []float64{20, 24} {
-		at := day.Add(time.Duration(i*5) * time.Minute)
+		at := day.Add(time.Hour + time.Duration(i*5)*time.Minute)
 		run, err := s.StartCollectionRun(ctx, at)
 		if err != nil {
 			t.Fatal(err)
@@ -454,7 +485,7 @@ func TestDailySummaryUsesTokyoCalendarAndGap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(days) != 1 || days[0].Date != "2026-07-18" || *days[0].Temperature.Avg != 22 || days[0].GapMinutes != 1425 {
+	if len(days) != 1 || days[0].Date != "2026-07-18" || *days[0].Temperature.Avg != 22 || days[0].GapMinutes != 45 {
 		t.Fatalf("unexpected daily summary: %#v", days)
 	}
 }
@@ -479,7 +510,7 @@ func TestDailyGapIncludesCoverageFromPreviousDay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(days) != 1 || days[0].GapMinutes != 1435 {
+	if len(days) != 1 || days[0].GapMinutes != 55 {
 		t.Fatalf("unexpected previous-day coverage: %#v", days)
 	}
 }

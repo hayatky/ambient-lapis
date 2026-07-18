@@ -88,7 +88,7 @@ fnm use 24.18.0
 npm run dev:mock
 ```
 
-モックのシナリオ(正常、収集停止、Remoオフライン、古い値、不明、エラーなど)は次で切り替えられます。
+モックのシナリオ(正常、収集停止、Remoオフライン、値未更新、不明、エラーなど)は次で切り替えられます。
 
 ```bash
 curl -X POST http://127.0.0.1:8090/__scenario -d '{"name":"collectionStopped"}'
@@ -108,6 +108,12 @@ npm run lint
 npm run typecheck
 npm run build
 npm run test:e2e     # Playwright。モックGo API + next devを自動起動
+```
+
+Composeを3000番で稼働させたままE2Eを実行する場合は、検証用サーバーを別ポートへ分離できます。
+
+```bash
+E2E_WEB_PORT=3001 E2E_MOCK_PORT=8091 npm run test:e2e
 ```
 
 ## Goバックエンドのローカル実行
@@ -181,7 +187,7 @@ GitHub Actionsや外部レジストリへ依存せず、ローカルで検証し
 ./scripts/verify-local.sh
 ```
 
-`verify-local.sh`はNode.js 24.18.0のWeb検証、Goのformat・test・race・vet・build、Compose設定確認、コンテナbuildをまとめて実行します。WebのPlaywright E2Eはポート3000/8090を使用するため、同ポートで別の開発サーバーを稼働中の場合は停止してから実行してください。稼働中のComposeを止めずに静的検証とbuildだけを行う場合は`SKIP_E2E=1 ./scripts/verify-local.sh`を使用し、E2Eはポートが空いた時間に`cd web && npm run test:e2e`で別途実行します。
+`verify-local.sh`はNode.js 24.18.0のWeb検証、Goのformat・test・race・vet・build、Compose設定確認、コンテナbuildをまとめて実行します。WebのPlaywright E2Eは既定でポート3000/8090を使用します。稼働中のComposeを止めずに静的検証とbuildだけを行う場合は`SKIP_E2E=1 ./scripts/verify-local.sh`を使用し、E2Eは上記の`E2E_WEB_PORT` / `E2E_MOCK_PORT`で別ポートへ分離して実行します。
 
 検証済みのcommitをチェックアウトした状態で、macOS（Apple Siliconを含む）からSynology向け`linux/amd64`イメージをtarへexportします。exportは再現性を保つため、Gitの作業ツリーがcleanであることを要求します。
 

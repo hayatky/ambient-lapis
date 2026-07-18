@@ -23,8 +23,7 @@ export const scenarioNames = [
   "partialAirconOnly",
   "collectionStopped",
   "remoOffline",
-  "temperatureStale",
-  "humidityStale",
+  "unchangedReadings",
   "airconUnknown",
   "unknownAirconMode",
   "fullError",
@@ -188,10 +187,7 @@ export function buildCurrent(context: BuildContext): MockResponse {
   const fetchedAt = successAt ?? nowMs;
   const noSamples = scenario === "initializing" || scenario === "noData";
 
-  const temperatureStale =
-    scenario === "temperatureStale" || scenario === "collectionStopped";
-  const humidityStale =
-    scenario === "humidityStale" || scenario === "collectionStopped";
+  const readingsUnchanged = scenario === "unchangedReadings";
   const environment =
     noSamples || scenario === "partialAirconOnly"
       ? null
@@ -201,16 +197,14 @@ export function buildCurrent(context: BuildContext): MockResponse {
           temperature: {
             valueC: round1(temperatureAt(fetchedAt)),
             observedAt: iso(
-              fetchedAt - (temperatureStale ? 22 * MINUTE_MS : 80_000),
+              fetchedAt - (readingsUnchanged ? 40 * MINUTE_MS : 80_000),
             ),
-            stale: temperatureStale,
           },
           humidity: {
             valuePct: round1(humidityAt(fetchedAt)),
             observedAt: iso(
-              fetchedAt - (humidityStale ? 22 * MINUTE_MS : 70_000),
+              fetchedAt - (readingsUnchanged ? 40 * MINUTE_MS : 70_000),
             ),
-            stale: humidityStale,
           },
         };
 

@@ -82,13 +82,11 @@ export const statusResponseSchema = successSchema(
 const temperatureSchema = z.looseObject({
   valueC: finiteNumber.nullable(),
   observedAt: nullableTimestamp,
-  stale: z.boolean(),
 });
 
 const humiditySchema = z.looseObject({
   valuePct: finiteNumber.nullable(),
   observedAt: nullableTimestamp,
-  stale: z.boolean(),
 });
 
 export const currentEnvironmentSchema = z.looseObject({
@@ -145,7 +143,6 @@ const seriesPointBase = {
   time: rfc3339,
   remoOnlineState: z.enum(["online", "offline", "mixed", "unknown"]),
   gap: z.boolean(),
-  stale: z.boolean(),
 };
 
 export const rawEnvironmentPointSchema = z.looseObject({

@@ -3,7 +3,8 @@
 // humidity panel (its own single axis each; never a dual-axis combo) and
 // a slim air-conditioner state ribbon attached to the timeline. Keeping
 // this free of React and DOM access makes the honesty rules (broken
-// lines on gaps, no fill for unknown-as-on, stale markers) unit-testable.
+// lines on gaps, no fill for unknown-as-on, no inferred settings)
+// unit-testable.
 
 import type { EChartsOption, SeriesOption } from "echarts";
 
@@ -70,41 +71,42 @@ const SEGMENT_STATE_LABELS: Record<AirconSegmentViewModel["state"], string> = {
   gap: "データなし",
 };
 
-type LineDataItem =
-  | [number, number | null]
-  | {
-      value: [number, number | null];
-      symbol: string;
-      symbolSize: number;
-      itemStyle: Record<string, unknown>;
-    };
+type LineDataItem = [number, number | null];
 
 function lineData(
   points: EnvironmentChartPointViewModel[],
   metric: "temperature" | "humidity",
-  warningColor: string,
 ): LineDataItem[] {
-  return points.map((point) => {
-    const value: [number, number | null] = [
+  return points.map(
+    (point): LineDataItem => [
       point.time.epochMs,
       point.gap ? null : point[metric].value,
-    ];
-    if (point.stale && !point.gap && point[metric].value !== null) {
-      // Stale readings stay visible but are marked with a hollow
-      // warning-colored point; the tooltip repeats this in text.
-      return {
-        value,
-        symbol: "circle",
-        symbolSize: 7,
-        itemStyle: {
-          color: "transparent",
-          borderColor: warningColor,
-          borderWidth: 1.5,
-        },
-      };
+    ],
+  );
+}
+
+export function targetTemperatureLineData(
+  segments: AirconSegmentViewModel[],
+  rangeFromMs: number,
+  rangeToMs: number,
+): LineDataItem[] {
+  const data: LineDataItem[] = [];
+  for (const segment of segments) {
+    if (segment.state !== "on" || segment.targetTemperatureC === null) {
+      continue;
     }
-    return value;
-  });
+    const from = Math.max(rangeFromMs, segment.from.epochMs);
+    const to = Math.min(rangeToMs, segment.to.epochMs);
+    if (from >= to) {
+      continue;
+    }
+    data.push(
+      [from, segment.targetTemperatureC],
+      [to, segment.targetTemperatureC],
+      [to, null],
+    );
+  }
+  return data;
 }
 
 interface PanelLayout {
@@ -226,6 +228,7 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
   };
 
   const humidityBounds = humidityAxisBounds(points);
+  const targetTemperatureColor = withAlpha(tokens.inkMuted, 0.72);
 
   const temperatureSeries: SeriesOption = {
     name: "温度",
@@ -240,7 +243,7 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     itemStyle: { color: tokens.temperature },
     areaStyle: { color: withAlpha(tokens.temperature, 0.1) },
     emphasis: { disabled: true },
-    data: lineData(points, "temperature", tokens.warning),
+    data: lineData(points, "temperature"),
     z: 3,
   };
 
@@ -257,8 +260,27 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     itemStyle: { color: tokens.humidity },
     areaStyle: { color: withAlpha(tokens.humidity, 0.1) },
     emphasis: { disabled: true },
-    data: lineData(points, "humidity", tokens.warning),
+    data: lineData(points, "humidity"),
     z: 3,
+  };
+
+  const targetTemperatureSeries: SeriesOption = {
+    name: "Nature Remo認識設定温度",
+    type: "line",
+    xAxisIndex: 0,
+    yAxisIndex: 0,
+    showSymbol: false,
+    connectNulls: false,
+    step: "end",
+    lineStyle: {
+      color: targetTemperatureColor,
+      width: 1.25,
+      type: "dashed",
+    },
+    itemStyle: { color: targetTemperatureColor },
+    emphasis: { disabled: true },
+    data: targetTemperatureLineData(airconSegments, rangeFromMs, rangeToMs),
+    z: 2,
   };
 
   // Painted ribbon segments: only states that mean something visually.
@@ -324,7 +346,7 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     },
     title: [
       {
-        text: `{key|—} 温度 {unit|°C}`,
+        text: `{key|—} 室温 {unit|°C}  {target|┄} Nature Remo認識設定温度`,
         left: 0,
         top: 0,
         textStyle: {
@@ -333,6 +355,7 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
           color: tokens.inkMuted,
           rich: {
             key: { color: tokens.temperature, fontWeight: 700 },
+            target: { color: targetTemperatureColor, fontWeight: 700 },
             unit: { color: tokens.inkMuted, fontSize: 11 },
           },
         },
@@ -465,7 +488,12 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
         preventDefaultMouseMove: false,
       },
     ],
-    series: [temperatureSeries, humiditySeries, ribbonSeries],
+    series: [
+      temperatureSeries,
+      humiditySeries,
+      targetTemperatureSeries,
+      ribbonSeries,
+    ],
   };
 }
 
@@ -484,29 +512,10 @@ function formatTooltip(
       `<div style="color:${tokens.inkSecondary};">データなし(欠損)</div>`,
     );
   } else {
-    const staleNote = point.stale
-      ? ` <span style="color:${tokens.warning};">(古い値)</span>`
-      : "";
     rows.push(
-      metricRow(
-        "温度",
-        tokens.temperature,
-        point.temperature.value,
-        "°C",
-        1,
-        staleNote,
-      ),
+      metricRow("温度", tokens.temperature, point.temperature.value, "°C", 1),
     );
-    rows.push(
-      metricRow(
-        "湿度",
-        tokens.humidity,
-        point.humidity.value,
-        "%",
-        0,
-        staleNote,
-      ),
-    );
+    rows.push(metricRow("湿度", tokens.humidity, point.humidity.value, "%", 0));
     if (point.temperature.observedAt) {
       rows.push(
         `<div style="color:${tokens.inkSecondary};">温度計測 ${timeFormatter.format(point.temperature.observedAt.epochMs)} / 湿度計測 ${
@@ -528,14 +537,35 @@ function formatTooltip(
     const detail =
       segment.state === "on"
         ? `${SEGMENT_STATE_LABELS.on}${segment.mode ? ` / ${segment.mode}` : ""}${
-            segment.targetTemperatureC !== null
-              ? ` / 設定 ${segment.targetTemperatureC.toFixed(1)}°C`
-              : ""
+            segment.targetTemperatureC === null ? " / 設定 --" : ""
           }`
         : SEGMENT_STATE_LABELS[segment.state];
     rows.push(
       `<div style="color:${tokens.inkSecondary};">エアコン認識: ${detail}</div>`,
     );
+    if (segment.state === "on" && segment.targetTemperatureC !== null) {
+      rows.push(
+        metricRow(
+          "認識設定温度",
+          withAlpha(tokens.inkMuted, 0.72),
+          segment.targetTemperatureC,
+          "°C",
+          1,
+        ),
+      );
+      const roomTemperature =
+        !point || point.gap ? null : point.temperature.value;
+      if (point && roomTemperature !== null) {
+        const delta = roomTemperature - segment.targetTemperatureC;
+        const deltaLabel =
+          delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1);
+        const roomLabel =
+          point.temperature.sampleCount === null ? "室温" : "平均室温";
+        rows.push(
+          `<div style="color:${tokens.inkSecondary};">${roomLabel}−設定 ${deltaLabel}°C</div>`,
+        );
+      }
+    }
   }
   return rows.join("");
 }
@@ -546,15 +576,15 @@ function metricRow(
   value: number | null,
   unit: string,
   digits: number,
-  staleNote: string,
 ): string {
   const display = value === null ? "--" : value.toFixed(digits);
-  return `<div style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:10px;height:3px;border-radius:2px;background:${color};"></span>${label} <span style="font-weight:600;">${display}${unit}</span>${staleNote}</div>`;
+  return `<div style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:10px;height:3px;border-radius:2px;background:${color};"></span>${label} <span style="font-weight:600;">${display}${unit}</span></div>`;
 }
 
 export interface SeriesSummary {
   temperature: MetricSummary | null;
   humidity: MetricSummary | null;
+  targetTemperature: TargetTemperatureSummary | null;
 }
 
 export interface MetricSummary {
@@ -564,14 +594,62 @@ export interface MetricSummary {
   latestAt: string;
 }
 
+export interface TargetTemperatureSummary {
+  latest: number;
+  latestAt: string;
+  roomDelta: number | null;
+  roomValueKind: "室温" | "平均室温";
+}
+
 // Text summary of the charted range used by the accessible chart
 // description (minimum, maximum and latest values as text).
 export function summarizeSeries(
   series: EnvironmentSeriesViewModel,
+  airconSegments: AirconSegmentViewModel[] = [],
 ): SeriesSummary {
   return {
     temperature: summarizeMetric(series.points, "temperature"),
     humidity: summarizeMetric(series.points, "humidity"),
+    targetTemperature: summarizeTargetTemperature(
+      series.points,
+      airconSegments,
+    ),
+  };
+}
+
+function summarizeTargetTemperature(
+  points: EnvironmentChartPointViewModel[],
+  segments: AirconSegmentViewModel[],
+): TargetTemperatureSummary | null {
+  const segment = [...segments]
+    .filter(
+      (candidate) =>
+        candidate.state === "on" && candidate.targetTemperatureC !== null,
+    )
+    .sort((left, right) => right.to.epochMs - left.to.epochMs)[0];
+  if (!segment || segment.targetTemperatureC === null) {
+    return null;
+  }
+  const roomPoint = points
+    .filter(
+      (point) =>
+        !point.gap &&
+        point.temperature.value !== null &&
+        segment.from.epochMs <= point.time.epochMs &&
+        point.time.epochMs < segment.to.epochMs,
+    )
+    .sort((left, right) => right.time.epochMs - left.time.epochMs)[0];
+  return {
+    latest: segment.targetTemperatureC,
+    latestAt: dateTimeFormatter.format(segment.from.epochMs),
+    roomDelta:
+      roomPoint?.temperature.value === null || roomPoint === undefined
+        ? null
+        : Math.round(
+            (roomPoint.temperature.value - segment.targetTemperatureC) * 10,
+          ) / 10,
+    roomValueKind:
+      roomPoint?.temperature.sampleCount === null ? "室温" : "平均室温",
   };
 }
 

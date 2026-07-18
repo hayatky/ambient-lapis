@@ -17,7 +17,6 @@ export interface RawSeriesPoint {
   humidity: { value: number | null; observedAt: string | null };
   remoOnlineState: "online" | "offline" | "mixed" | "unknown";
   gap: boolean;
-  stale: boolean;
 }
 
 export interface AggregateMetric {
@@ -34,7 +33,6 @@ export interface AggregateSeriesPoint {
   humidity: AggregateMetric;
   remoOnlineState: "online" | "offline" | "mixed" | "unknown";
   gap: boolean;
-  stale: boolean;
 }
 
 export interface AirconSegment {
@@ -175,7 +173,6 @@ export function generateRawPoints(options: SeriesOptions): RawSeriesPoint[] {
         humidity: { value: null, observedAt: null },
         remoOnlineState: "unknown",
         gap: true,
-        stale: false,
       });
       continue;
     }
@@ -193,7 +190,6 @@ export function generateRawPoints(options: SeriesOptions): RawSeriesPoint[] {
       },
       remoOnlineState: offline ? "offline" : "online",
       gap: false,
-      stale: false,
     });
   }
   return points;
@@ -235,7 +231,6 @@ export function generateAggregatePoints(
         humidity: emptyAggregateMetric(),
         remoOnlineState: "unknown",
         gap: true,
-        stale: false,
       });
       continue;
     }
@@ -252,7 +247,6 @@ export function generateAggregatePoints(
       remoOnlineState:
         offline && online ? "mixed" : offline ? "offline" : "online",
       gap: false,
-      stale: false,
     });
   }
   return points;
@@ -394,18 +388,26 @@ export function generateDailySummary(options: {
     dayStart < end;
     dayStart += DAY_MS
   ) {
-    const dayEnd = Math.min(dayStart + DAY_MS, end);
+    const periodStart = Math.max(dayStart, options.fromMs);
+    const periodEnd = Math.min(dayStart + DAY_MS, end);
+    if (periodStart >= periodEnd) {
+      continue;
+    }
     const samples: number[] = [];
     for (
-      let sample = Math.ceil(dayStart / RAW_STEP_MS) * RAW_STEP_MS;
-      sample < dayEnd;
+      let sample = Math.ceil(periodStart / RAW_STEP_MS) * RAW_STEP_MS;
+      sample < periodEnd;
       sample += RAW_STEP_MS
     ) {
       if (!isInGap(sample)) {
         samples.push(sample);
       }
     }
-    const gapMinutes = dayEnd - dayStart >= 4 * HOUR_MS ? 30 : 0;
+    const expectedSamples = Math.ceil(
+      (periodEnd - Math.ceil(periodStart / RAW_STEP_MS) * RAW_STEP_MS) /
+        RAW_STEP_MS,
+    );
+    const gapMinutes = Math.max(0, expectedSamples - samples.length) * 5;
     if (samples.length === 0) {
       days.push({
         date: jstDateString(dayStart),

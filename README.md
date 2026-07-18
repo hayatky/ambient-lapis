@@ -6,7 +6,7 @@ Nature Remo Lapisで計測した自室の温度・湿度と、Nature Remoが認�
 
 ## Status
 
-Goバックエンドの初期版実装が完了しています。設定、Nature API収集、SQLite、内部API、バックアップ、Graceful Shutdown、コンテナ運用を`backend/`にまとめています。Next.jsダッシュボードは`web/`で基盤とAPI接続層から実装を進めています。
+GoバックエンドとNext.jsダッシュボードの初期版実装が完了しています。`backend/`が設定、Nature API収集、SQLite、内部API、バックアップ、Graceful Shutdown、コンテナ運用を担い、`web/`がBFF、契約検証、現在値・履歴・Nature Remo認識状態の表示を担います。
 
 ## Architecture
 
@@ -41,7 +41,7 @@ flowchart LR
 - Go
 - SQLite
 - Docker Compose
-- Apache ECharts（候補）
+- Apache ECharts
 
 ## Project principles
 
@@ -134,7 +134,7 @@ npm install
 npm run dev
 ```
 
-開発サーバーは既定で`http://localhost:3000`に起動します。静的確認、単体テスト、production build、ブラウザsmoke testは次の順で実行します。
+開発サーバーは既定で`http://localhost:3000`に起動します。静的確認、単体テスト、production build、ブラウザE2Eは次の順で実行します。
 
 ```bash
 cd web
@@ -147,3 +147,5 @@ npm run test:e2e
 ```
 
 PlaywrightのChromiumが未導入の場合は、事前に`npx playwright install chromium`を実行してください。`REMO_API_BASE_URL`はサーバー側だけで使用し、`NEXT_PUBLIC_`変数には設定しません。
+
+`npm run test:e2e`は`127.0.0.1`だけで待ち受ける匿名fixtureのfake Go APIとNext.jsを起動し、390 x 844、768 x 1024、1440 x 900の3構成でSSRとBFFを含む画面を確認します。live Nature APIやローカルのtoken、実IDは使用しません。

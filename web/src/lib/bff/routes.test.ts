@@ -168,6 +168,31 @@ describe.sequential("BFF route handlers", () => {
     );
 
     expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual(body);
+  });
+
+  it("never caches a validated error from a history endpoint", async () => {
+    const body = {
+      error: {
+        code: "upstream_unavailable",
+        message: "history is temporarily unavailable",
+      },
+      meta: {
+        requestId: "request-history-error",
+        generatedAt: "2026-07-18T12:34:56.789Z",
+      },
+    };
+    fetchMock.mockResolvedValue(jsonResponse(body, 503));
+
+    const response = await getEnvironmentSeries(
+      new Request(
+        "http://web.local/api/v1/environment/series?from=2026-07-18T12%3A00%3A00Z&to=2026-07-18T13%3A00%3A00Z&resolution=raw",
+      ),
+    );
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     await expect(response.json()).resolves.toEqual(body);
   });
 

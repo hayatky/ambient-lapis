@@ -118,11 +118,12 @@ describe("view model mapping", () => {
 
   it("does not describe full errors or cancellations as partial success", () => {
     const fullError = fixtureScenarios.fullError;
-    expect(
-      mapWarnings(fullError.status.data, fullError.current.data).map(
-        (warning) => warning.code,
-      ),
-    ).not.toContain("partialFailure");
+    const fullErrorCodes = mapWarnings(
+      fullError.status.data,
+      fullError.current.data,
+    ).map((warning) => warning.code);
+    expect(fullErrorCodes).toContain("collectionFailure");
+    expect(fullErrorCodes).not.toContain("partialFailure");
 
     const cancelledStatus = {
       ...fullError.status.data,
@@ -135,11 +136,77 @@ describe("view model mapping", () => {
           }
         : null,
     };
+    const cancelledCodes = mapWarnings(
+      cancelledStatus,
+      fullError.current.data,
+    ).map((warning) => warning.code);
+    expect(cancelledCodes).toContain("collectionFailure");
+    expect(cancelledCodes).not.toContain("partialFailure");
+  });
+
+  it("maps warnings from whichever live resource remains available", () => {
+    const fixture = fixtureScenarios.fullError;
     expect(
-      mapWarnings(cancelledStatus, fullError.current.data).map(
-        (warning) => warning.code,
+      mapWarnings(fixture.status.data, null).map(({ code }) => code),
+    ).toContain("collectionFailure");
+    expect(
+      mapWarnings(null, {
+        ...fixture.current.data,
+        freshness: {
+          ...fixture.current.data.freshness,
+          collectionStopped: true,
+        },
+      }).map(({ code }) => code),
+    ).toContain("collectionStopped");
+    expect(mapWarnings(null, null)).toEqual([]);
+  });
+
+  it("places an unknown Remo connection state after stale measurements", () => {
+    const fixture = fixtureScenarios.nullMeasurements;
+    expect(
+      mapWarnings(fixture.status.data, fixture.current.data).map(
+        ({ code }) => code,
       ),
-    ).not.toContain("partialFailure");
+    ).toEqual(["temperatureStale", "humidityStale", "remoUnknown"]);
+  });
+
+  it("formats auto-mode temperature as a relative adjustment", () => {
+    const fixture = fixtureScenarios.normal;
+    const current = {
+      ...fixture.current.data,
+      aircon: fixture.current.data.aircon
+        ? {
+            ...fixture.current.data.aircon,
+            mode: { raw: "auto", label: "自動", known: true },
+            targetTemperatureC: 1.5,
+          }
+        : null,
+    };
+
+    const model = mapDashboard({ status: fixture.status.data, current }, now);
+    expect(model.aircon?.targetTemperatureLabel).toBe("温度調整 +1.5");
+  });
+
+  it("maps known aircon settings and preserves unknown raw values honestly", () => {
+    const fixture = fixtureScenarios.normal;
+    const current = {
+      ...fixture.current.data,
+      aircon: fixture.current.data.aircon
+        ? {
+            ...fixture.current.data.aircon,
+            volume: "vendor-turbo",
+            directionVertical: "swing",
+            directionHorizontal: "",
+          }
+        : null,
+    };
+
+    const model = mapDashboard({ status: fixture.status.data, current }, now);
+    expect(model.aircon).toMatchObject({
+      volume: "不明（vendor-turbo）",
+      directionVertical: "スイング",
+      directionHorizontal: "--",
+    });
   });
 
   it("preserves unknown aircon mode raw value", () => {

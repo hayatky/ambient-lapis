@@ -48,14 +48,14 @@ export function mapDashboard(
 }
 
 export function mapWarnings(
-  status: StatusData,
-  current: CurrentData,
+  status: StatusData | null,
+  current: CurrentData | null,
 ): DashboardWarning[] {
   const warnings: DashboardWarning[] = [];
   if (
-    status.collectionState === "stopped" ||
-    (status.collectionState !== "initializing" &&
-      current.freshness.collectionStopped)
+    status?.collectionState === "stopped" ||
+    (status?.collectionState !== "initializing" &&
+      current?.freshness.collectionStopped === true)
   ) {
     warnings.push({
       code: "collectionStopped",
@@ -65,7 +65,7 @@ export function mapWarnings(
         "最後に取得した値を表示しています。最終完全成功時刻を確認してください。",
     });
   }
-  if (current.environment?.remoOnline === false) {
+  if (current?.environment?.remoOnline === false) {
     warnings.push({
       code: "remoOffline",
       severity: "danger",
@@ -73,9 +73,20 @@ export function mapWarnings(
       detail: "表示値は現在値ではない可能性があります。",
     });
   }
-  const lastRun = status.lastRun;
+  const lastRun = status?.lastRun;
+  if (
+    lastRun?.overallStatus === "error" ||
+    lastRun?.overallStatus === "cancelled"
+  ) {
+    warnings.push({
+      code: "collectionFailure",
+      severity: "warning",
+      title: "最新のデータ収集に失敗しました",
+      detail: "取得済みの値を表示し、次の収集を待っています。",
+    });
+  }
   const endpointPartial =
-    lastRun !== null &&
+    lastRun != null &&
     ((lastRun.devicesStatus === "success" &&
       lastRun.appliancesStatus === "error") ||
       (lastRun.devicesStatus === "error" &&
@@ -88,7 +99,7 @@ export function mapWarnings(
       detail: "取得できた領域はそのまま表示しています。",
     });
   }
-  if (current.environment?.temperature.stale === true) {
+  if (current?.environment?.temperature.stale === true) {
     warnings.push({
       code: "temperatureStale",
       severity: "warning",
@@ -96,7 +107,7 @@ export function mapWarnings(
       detail: "最後に観測できた温度を表示しています。",
     });
   }
-  if (current.environment?.humidity.stale === true) {
+  if (current?.environment?.humidity.stale === true) {
     warnings.push({
       code: "humidityStale",
       severity: "warning",
@@ -104,7 +115,16 @@ export function mapWarnings(
       detail: "最後に観測できた湿度を表示しています。",
     });
   }
-  if (current.aircon?.recognitionState === "unknown") {
+  if (current?.environment?.remoOnline === null) {
+    warnings.push({
+      code: "remoUnknown",
+      severity: "warning",
+      title: "Nature Remoの接続状態が不明です",
+      detail:
+        "オンラインまたはオフラインを推測せず、状態不明として表示します。",
+    });
+  }
+  if (current?.aircon?.recognitionState === "unknown") {
     warnings.push({
       code: "airconUnknown",
       severity: "warning",
@@ -164,19 +184,50 @@ export function mapAircon(
     recognitionLabel: labels[aircon.recognitionState],
     mode: aircon.mode,
     targetTemperatureC: aircon.targetTemperatureC,
-    targetTemperatureLabel:
-      aircon.targetTemperatureC === null
-        ? MISSING_VALUE
-        : `${aircon.targetTemperatureC.toFixed(1)} °C`,
-    volume: aircon.volume,
-    directionVertical: aircon.directionVertical,
-    directionHorizontal: aircon.directionHorizontal,
+    targetTemperatureLabel: formatTargetTemperature(
+      aircon.mode.raw,
+      aircon.targetTemperatureC,
+    ),
+    volume: formatAirconSetting(aircon.volume, { auto: "自動" }),
+    directionVertical: formatAirconSetting(aircon.directionVertical, {
+      auto: "自動",
+      swing: "スイング",
+      left: "左",
+      right: "右",
+      center: "中央",
+    }),
+    directionHorizontal: formatAirconSetting(aircon.directionHorizontal, {
+      auto: "自動",
+      swing: "スイング",
+      left: "左",
+      right: "右",
+      center: "中央",
+    }),
     fetchedAt: toDisplayTimestamp(aircon.fetchedAt, now),
     settingsUpdatedAt: aircon.settingsUpdatedAt
       ? toDisplayTimestamp(aircon.settingsUpdatedAt, now)
       : null,
     disclaimer: "エアコン本体との双方向確認ではありません",
   };
+}
+
+function formatTargetTemperature(mode: string, value: number | null): string {
+  if (value === null) return MISSING_VALUE;
+  if (mode !== "auto") return `${value.toFixed(1)} °C`;
+
+  const magnitude = Number.isInteger(value)
+    ? value.toFixed(0)
+    : value.toFixed(1);
+  const sign = value > 0 ? "+" : "";
+  return `温度調整 ${sign}${magnitude}`;
+}
+
+function formatAirconSetting(
+  raw: string | null,
+  labels: Readonly<Record<string, string>>,
+): string {
+  if (raw === null || raw === "") return MISSING_VALUE;
+  return labels[raw] ?? `不明（${raw}）`;
 }
 
 export function mapEnvironmentSeries(

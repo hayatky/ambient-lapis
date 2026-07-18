@@ -278,6 +278,10 @@ export const fixtureScenarios = {
     ...normalCurrent,
     environment: { ...normalEnvironment, remoOnline: false },
   }),
+  remoUnknown: scenario(healthyStatus, {
+    ...normalCurrent,
+    environment: { ...normalEnvironment, remoOnline: null },
+  }),
   temperatureStale: scenario(healthyStatus, {
     ...normalCurrent,
     environment: {
@@ -290,6 +294,15 @@ export const fixtureScenarios = {
     environment: {
       ...normalEnvironment,
       humidity: { ...normalEnvironment.humidity, stale: true },
+    },
+  }),
+  nullMeasurements: scenario(healthyStatus, {
+    ...normalCurrent,
+    environment: {
+      ...normalEnvironment,
+      remoOnline: null,
+      temperature: { valueC: null, observedAt: null, stale: true },
+      humidity: { valuePct: null, observedAt: null, stale: true },
     },
   }),
   airconUnknown: scenario(healthyStatus, {
@@ -306,6 +319,49 @@ export const fixtureScenarios = {
       mode: { raw: "vendor-eco-plus", label: "vendor-eco-plus", known: false },
     },
   }),
+  unknownAirconSettings: scenario(healthyStatus, {
+    ...normalCurrent,
+    aircon: {
+      ...normalAircon,
+      mode: { raw: "vendor-eco-plus", label: "vendor-eco-plus", known: false },
+      volume: "vendor-breeze",
+      directionVertical: "vendor-swing-wide",
+      directionHorizontal: "",
+    },
+  }),
+  autoMode: scenario(healthyStatus, {
+    ...normalCurrent,
+    aircon: {
+      ...normalAircon,
+      mode: { raw: "auto", label: "自動", known: true },
+      targetTemperatureC: 1.5,
+    },
+  }),
+  warningPriority: scenario(
+    {
+      ...healthyStatus,
+      collectionState: "stopped",
+      lastRun: {
+        startedAt: "2026-07-18T12:33:00.000Z",
+        completedAt: "2026-07-18T12:33:01.200Z",
+        overallStatus: "partial",
+        devicesStatus: "success",
+        appliancesStatus: "error",
+        errorCodes: ["upstream_error"],
+      },
+    },
+    {
+      ...normalCurrent,
+      environment: {
+        ...normalEnvironment,
+        remoOnline: false,
+        temperature: { ...normalEnvironment.temperature, stale: true },
+        humidity: { ...normalEnvironment.humidity, stale: true },
+      },
+      aircon: { ...normalAircon, recognitionState: "unknown" },
+      freshness: { ...normalCurrent.freshness, collectionStopped: true },
+    },
+  ),
   fullError: scenario(
     {
       ...healthyStatus,

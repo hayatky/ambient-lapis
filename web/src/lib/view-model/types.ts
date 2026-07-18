@@ -1,9 +1,11 @@
 export type WarningCode =
   | "collectionStopped"
   | "remoOffline"
+  | "collectionFailure"
   | "partialFailure"
   | "temperatureStale"
   | "humidityStale"
+  | "remoUnknown"
   | "airconUnknown";
 
 export interface DashboardWarning {
@@ -42,9 +44,9 @@ export interface AirconViewModel {
   mode: { raw: string; label: string; known: boolean };
   targetTemperatureC: number | null;
   targetTemperatureLabel: string;
-  volume: string | null;
-  directionVertical: string | null;
-  directionHorizontal: string | null;
+  volume: string;
+  directionVertical: string;
+  directionHorizontal: string;
   fetchedAt: DisplayTimestamp;
   settingsUpdatedAt: DisplayTimestamp | null;
   disclaimer: "エアコン本体との双方向確認ではありません";

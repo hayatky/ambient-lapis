@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { themeInitializationScript } from "@/lib/theme";
 
 import "./globals.css";
+import "./dashboard.css";
 
 export const metadata: Metadata = {
   title: "Ambient Lapis",

@@ -86,7 +86,9 @@ export async function proxyToGo(
     return Response.json(payload, {
       status: upstream.status,
       headers: {
-        "Cache-Control": CACHE_CONTROL[options.cachePolicy],
+        "Cache-Control": upstream.ok
+          ? CACHE_CONTROL[options.cachePolicy]
+          : "no-store",
         "Content-Type": "application/json; charset=utf-8",
       },
     });

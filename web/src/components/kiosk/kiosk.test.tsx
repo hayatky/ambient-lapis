@@ -65,6 +65,7 @@ const initial: KioskInitialData = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
   Object.defineProperty(document, "fullscreenEnabled", {
     configurable: true,
     value: true,
@@ -106,10 +107,20 @@ describe("Kiosk", () => {
       screen.getByRole("region", { name: "エアコン - Nature Remo認識状態" }),
     ).toHaveTextContent("運転中");
     const root = screen.getByTestId("kiosk-root");
-    const dock = screen.getByTestId("kiosk-control-dock");
+    const dock = screen.getByTestId("kiosk-header-menu");
+    expect(screen.getByTestId("kiosk-header")).toContainElement(dock);
+    expect(screen.getByTestId("kiosk-bottom-overlays")).not.toContainElement(
+      dock,
+    );
     expect(dock).toHaveAttribute("data-menu-visible", "false");
-    fireEvent.pointerMove(root);
+    expect(screen.getByTestId("kiosk-brand")).not.toHaveClass(
+      "kiosk-brand-menu-visible",
+    );
+    fireEvent.touchStart(root);
     expect(dock).toHaveAttribute("data-menu-visible", "true");
+    expect(screen.getByTestId("kiosk-brand")).toHaveClass(
+      "kiosk-brand-menu-visible",
+    );
     expect(screen.getByRole("button", { name: "24時間" })).toBeInTheDocument();
     expect(
       await screen.findByRole("button", { name: /全画面/ }),
@@ -118,10 +129,13 @@ describe("Kiosk", () => {
       "href",
       "/",
     );
-    expect(
-      screen.getByRole("radiogroup", { name: "テーマ" }),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("kiosk-theme-trigger")).toBeInTheDocument();
+    expect(screen.queryByText("収集正常")).not.toBeInTheDocument();
     expect(screen.queryByText(/双方向確認/)).not.toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(dock).toHaveAttribute("data-menu-visible", "false");
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(dock).toHaveAttribute("data-menu-visible", "true");
   });
 
   it("loads a new range and exposes selected chart details", async () => {
@@ -174,7 +188,7 @@ describe("Kiosk", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "データ収集が停止しています",
     );
-    expect(screen.getByTestId("kiosk-control-dock")).toHaveAttribute(
+    expect(screen.getByTestId("kiosk-header-menu")).toHaveAttribute(
       "data-menu-visible",
       "false",
     );
@@ -247,7 +261,7 @@ describe("Kiosk", () => {
     vi.useFakeTimers();
     render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
     const root = screen.getByTestId("kiosk-root");
-    const dock = screen.getByTestId("kiosk-control-dock");
+    const dock = screen.getByTestId("kiosk-header-menu");
 
     expect(dock).toHaveAttribute("data-menu-visible", "false");
     fireEvent.pointerMove(root);
@@ -275,8 +289,90 @@ describe("Kiosk", () => {
     expect(dock).toHaveAttribute("data-menu-visible", "false");
 
     fireEvent.pointerMove(root);
+    fireEvent.click(screen.getByTestId("kiosk-theme-trigger"));
+    act(() => vi.advanceTimersByTime(5000));
+    expect(dock).toHaveAttribute("data-menu-visible", "true");
+    fireEvent.keyDown(screen.getByTestId("kiosk-theme-menu"), {
+      key: "Escape",
+    });
+
     fireEvent.click(periodButton);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(dock).toHaveAttribute("data-menu-visible", "false");
+  });
+
+  it("opens the three-state theme menu and returns focus after selection", async () => {
+    const user = userEvent.setup();
+    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
+    fireEvent.pointerMove(screen.getByTestId("kiosk-root"));
+    const trigger = screen.getByTestId("kiosk-theme-trigger");
+    await user.click(trigger);
+    const menu = screen.getByTestId("kiosk-theme-menu");
+    expect(menu).toBeInTheDocument();
+    expect(screen.getAllByRole("menuitemradio")).toHaveLength(3);
+    const dark = screen.getByRole("menuitemradio", { name: "ダーク" });
+    await user.click(dark);
+    expect(window.localStorage.getItem("ambient-lapis-theme")).toBe("dark");
+    expect(screen.queryByTestId("kiosk-theme-menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("supports theme menu keyboard navigation and two-stage Escape", async () => {
+    const user = userEvent.setup();
+    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
+    fireEvent.pointerMove(screen.getByTestId("kiosk-root"));
+    const headerMenu = screen.getByTestId("kiosk-header-menu");
+    const trigger = screen.getByTestId("kiosk-theme-trigger");
+    await user.click(trigger);
+    const system = screen.getByRole("menuitemradio", { name: "自動" });
+    expect(system).toHaveFocus();
+    await user.keyboard("{Home}");
+    expect(screen.getByRole("menuitemradio", { name: "ライト" })).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(system).toHaveFocus();
+    await user.keyboard("{ArrowUp}");
+    expect(screen.getByRole("menuitemradio", { name: "ダーク" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByTestId("kiosk-theme-menu")).not.toBeInTheDocument();
+    expect(headerMenu).toHaveAttribute("data-menu-visible", "true");
+    expect(trigger).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(headerMenu).toHaveAttribute("data-menu-visible", "false");
+  });
+
+  it.each([
+    { key: "Enter", preference: "dark", label: "ダーク" },
+    { key: " ", preference: "light", label: "ライト" },
+  ])(
+    "selects a theme with $key and returns focus",
+    ({ key, preference, label }) => {
+      render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
+      fireEvent.pointerMove(screen.getByTestId("kiosk-root"));
+      const trigger = screen.getByTestId("kiosk-theme-trigger");
+      fireEvent.click(trigger);
+      const item = screen.getByRole("menuitemradio", { name: label });
+      fireEvent.focus(item);
+      fireEvent.keyDown(item, { key });
+      expect(window.localStorage.getItem("ambient-lapis-theme")).toBe(
+        preference,
+      );
+      expect(trigger).toHaveAttribute("aria-label", `テーマ: ${label}`);
+      expect(screen.queryByTestId("kiosk-theme-menu")).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    },
+  );
+
+  it("closes the theme menu on outside pointer interaction", async () => {
+    const user = userEvent.setup();
+    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
+    fireEvent.pointerMove(screen.getByTestId("kiosk-root"));
+    const trigger = screen.getByTestId("kiosk-theme-trigger");
+    await user.click(trigger);
+    expect(screen.getByTestId("kiosk-theme-menu")).toBeInTheDocument();
+    fireEvent.pointerDown(
+      screen.getByRole("region", { name: "現在の室内環境" }),
+    );
+    expect(screen.queryByTestId("kiosk-theme-menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 });

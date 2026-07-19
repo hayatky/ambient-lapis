@@ -107,36 +107,111 @@ a {
   background: var(--raised);
 }
 
-.kiosk-dock {
+.kiosk-header-menu {
   visibility: hidden;
   pointer-events: none;
-  max-height: 0;
-  overflow: hidden;
   opacity: 0;
-  margin-top: 0;
-  border-width: 0;
-  padding-block: 0;
   transform: translateY(10px);
   transition:
     opacity 220ms ease,
-    max-height 220ms ease,
     transform 220ms ease,
-    visibility 220ms ease,
-    margin-top 220ms ease,
-    border-width 220ms ease,
-    padding 220ms ease;
+    visibility 220ms ease;
 }
 
-.kiosk-dock-visible {
+.kiosk-header-menu-visible {
   visibility: visible;
   pointer-events: auto;
-  max-height: 12rem;
-  overflow: visible;
   opacity: 1;
-  margin-top: 0.5rem;
-  border-width: 1px;
-  padding-block: 0.375rem;
   transform: translateY(0);
+}
+
+.kiosk-header-control,
+.kiosk-header-icon-control {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.kiosk-header-control:hover,
+.kiosk-header-control-active,
+.kiosk-header-icon-control:hover,
+.kiosk-header-icon-control:focus-visible {
+  color: var(--ink);
+}
+
+.kiosk-header-control {
+  position: relative;
+}
+
+.kiosk-header-control-active::after {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.38rem;
+  left: 0.65rem;
+  height: 1px;
+  content: "";
+  background: currentColor;
+}
+
+.kiosk-brand {
+  opacity: 1;
+  transition: opacity 180ms ease;
+}
+
+.kiosk-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
+.kiosk-theme-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 50;
+  display: grid;
+  min-width: 8rem;
+  padding: 0.25rem;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--raised);
+}
+
+.kiosk-theme-item {
+  min-height: 44px;
+  padding-inline: 0.75rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-secondary);
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.kiosk-theme-item:hover,
+.kiosk-theme-item:focus-visible,
+.kiosk-theme-item[aria-checked="true"] {
+  color: var(--ink);
+}
+
+@media (max-width: 479px) {
+  .kiosk-brand-menu-visible {
+    opacity: 0;
+  }
 }
 
 .kiosk-control,
@@ -252,7 +327,8 @@ a {
     animation-iteration-count: 1 !important;
   }
 
-  .kiosk-dock {
+  .kiosk-header-menu,
+  .kiosk-brand {
     transition: none;
   }
 }

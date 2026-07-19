@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -13,7 +12,6 @@ import {
   EnvironmentChart,
   type EnvironmentChartSelection,
 } from "@/components/dashboard/environment-chart";
-import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { useKioskData, type KioskInitialData } from "@/hooks/use-kiosk-data";
 import { useNow } from "@/hooks/use-now";
 import type { CurrentData, StatusData } from "@/lib/api/schemas";
@@ -30,10 +28,10 @@ import {
   mapWarnings,
   type DashboardWarning,
 } from "@/lib/view-model";
-import { formatAge, toDisplayTimestamp } from "@/lib/view-model/time";
 
-const KIOSK_PRESETS = ["24h", "7d", "30d"] as const;
-type KioskPreset = (typeof KIOSK_PRESETS)[number];
+import { HeaderMenu } from "./header-menu";
+
+type KioskPreset = "24h" | "7d" | "30d";
 
 const selectionTimeFormatter = new Intl.DateTimeFormat("ja-JP", {
   timeZone: "Asia/Tokyo",
@@ -69,6 +67,7 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
   const dockRef = useRef<HTMLDivElement>(null);
   const dockHoveredRef = useRef(false);
   const dockFocusedRef = useRef(false);
+  const themeMenuOpenRef = useRef(false);
   const dockHideTimerRef = useRef<number | null>(null);
 
   const clearDockHideTimer = useCallback((): void => {
@@ -111,6 +110,10 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
+        if (themeMenuOpenRef.current) {
+          themeMenuOpenRef.current = false;
+          return;
+        }
         hideDock();
         return;
       }
@@ -170,10 +173,6 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
     : null;
   const airconSegments = mapAirconSegments(state.airconSeries, now);
   const warnings = mapAvailableWarnings(state.status, state.current);
-  const collectionState = state.status?.collectionState ?? null;
-  const lastFullSuccessAt = state.status?.lastFullSuccessAt
-    ? toDisplayTimestamp(state.status.lastFullSuccessAt, now)
-    : null;
 
   const changePreset = useCallback(
     (next: KioskPreset): void => {
@@ -239,10 +238,61 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
         )}
       </div>
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 px-5 pt-[max(18px,env(safe-area-inset-top))] sm:px-8 sm:pt-[max(26px,env(safe-area-inset-top))] lg:px-12">
-        <p className="m-0 text-[0.72rem] font-medium tracking-[0.14em] text-[var(--ink-muted)]">
-          Ambient Lapis
-        </p>
+      <header
+        data-testid="kiosk-header"
+        className="pointer-events-none absolute inset-x-0 top-0 z-30 px-5 pt-[max(18px,env(safe-area-inset-top))] sm:px-8 sm:pt-[max(26px,env(safe-area-inset-top))] lg:px-12"
+      >
+        <div className="flex min-h-11 items-start justify-between">
+          <p
+            data-testid="kiosk-brand"
+            className={`kiosk-brand m-0 shrink-0 pt-3 text-[0.72rem] font-medium tracking-[0.14em] text-[var(--ink-muted)] ${dockVisible ? "kiosk-brand-menu-visible" : ""}`}
+          >
+            Ambient Lapis
+          </p>
+          <HeaderMenu
+            menuRef={dockRef}
+            visible={dockVisible}
+            fullscreenSupported={fullscreenSupported}
+            fullscreen={fullscreen}
+            preset={preset}
+            onPresetChange={changePreset}
+            onFullscreen={() => void toggleFullscreen()}
+            onMouseEnter={() => {
+              dockHoveredRef.current = true;
+              clearDockHideTimer();
+              setDockVisible(true);
+            }}
+            onMouseLeave={() => {
+              dockHoveredRef.current = false;
+              scheduleDockHide();
+            }}
+            onFocusCapture={() => {
+              dockFocusedRef.current = true;
+              clearDockHideTimer();
+              setDockVisible(true);
+            }}
+            onBlurCapture={(event) => {
+              const relatedTarget = event.relatedTarget;
+              if (
+                !(relatedTarget instanceof Node) ||
+                !event.currentTarget.contains(relatedTarget)
+              ) {
+                dockFocusedRef.current = false;
+                scheduleDockHide();
+              }
+            }}
+            onThemeMenuOpenChange={(open) => {
+              themeMenuOpenRef.current = open;
+              if (open) {
+                dockFocusedRef.current = true;
+                clearDockHideTimer();
+              } else if (!dockHoveredRef.current) {
+                dockFocusedRef.current = false;
+                scheduleDockHide();
+              }
+            }}
+          />
+        </div>
       </header>
 
       <section
@@ -269,7 +319,7 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
 
       <section
         aria-label="エアコン - Nature Remo認識状態"
-        className={`absolute top-[clamp(142px,18vh,172px)] right-5 z-20 min-w-[10.5rem] py-3 text-right sm:top-[clamp(58px,10vh,104px)] sm:right-8 lg:right-12 ${hasDanger ? "opacity-65" : ""}`}
+        className={`absolute top-[clamp(132px,18vh,176px)] right-5 z-20 min-w-[10.5rem] py-3 text-right sm:top-[clamp(132px,16vh,168px)] sm:right-8 lg:top-[clamp(112px,14vh,156px)] lg:right-12 ${hasDanger ? "opacity-65" : ""}`}
       >
         <p className="m-0 text-[0.65rem] font-medium tracking-[0.12em] text-[var(--ink-muted)]">
           NATURE REMO認識
@@ -293,7 +343,10 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
         )}
       </section>
 
-      <div className="absolute inset-x-0 bottom-0 z-30 flex flex-col items-center px-3 pb-[max(10px,env(safe-area-inset-bottom))] sm:px-6 sm:pb-[max(18px,env(safe-area-inset-bottom))]">
+      <div
+        data-testid="kiosk-bottom-overlays"
+        className="absolute inset-x-0 bottom-0 z-30 flex flex-col items-center px-3 pb-[max(10px,env(safe-area-inset-bottom))] sm:px-6 sm:pb-[max(18px,env(safe-area-inset-bottom))]"
+      >
         {state.historyError ? (
           <div
             role="alert"
@@ -323,75 +376,6 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
             onRetry={refreshCurrent}
           />
         ) : null}
-        <div
-          ref={dockRef}
-          data-testid="kiosk-control-dock"
-          data-menu-visible={dockVisible ? "true" : "false"}
-          aria-hidden={!dockVisible}
-          className={`kiosk-dock kiosk-surface mt-2 flex w-full max-w-[880px] flex-wrap items-center justify-center gap-x-2 px-2 py-1.5 sm:flex-nowrap sm:justify-start sm:gap-4 sm:px-3 ${dockVisible ? "kiosk-dock-visible" : ""}`}
-          onMouseEnter={() => {
-            dockHoveredRef.current = true;
-            clearDockHideTimer();
-            setDockVisible(true);
-          }}
-          onMouseLeave={() => {
-            dockHoveredRef.current = false;
-            scheduleDockHide();
-          }}
-          onFocusCapture={() => {
-            dockFocusedRef.current = true;
-            clearDockHideTimer();
-            setDockVisible(true);
-          }}
-          onBlurCapture={(event) => {
-            const relatedTarget = event.relatedTarget;
-            if (
-              !(relatedTarget instanceof Node) ||
-              !event.currentTarget.contains(relatedTarget)
-            ) {
-              dockFocusedRef.current = false;
-              scheduleDockHide();
-            }
-          }}
-        >
-          <StatusSummary
-            collectionState={collectionState}
-            warnings={warnings.filter(
-              (warning) => warning.severity !== "danger",
-            )}
-            lastFullSuccessAt={lastFullSuccessAt}
-            currentError={false}
-            onRetry={refreshCurrent}
-          />
-          <div className="flex items-center sm:ml-auto">
-            {KIOSK_PRESETS.map((option) => (
-              <button
-                key={option}
-                type="button"
-                aria-pressed={preset === option}
-                onClick={() => changePreset(option)}
-                className={`kiosk-control ${preset === option ? "kiosk-control-active" : ""}`}
-              >
-                {PERIOD_LABELS[option]}
-              </button>
-            ))}
-          </div>
-          <div className="order-last basis-full border-t border-[var(--hairline)] sm:order-none sm:basis-auto sm:border-t-0 sm:border-l sm:pl-2">
-            <ThemeToggle />
-          </div>
-          {fullscreenSupported ? (
-            <button
-              type="button"
-              className="kiosk-control"
-              onClick={() => void toggleFullscreen()}
-            >
-              {fullscreen ? "全画面を終了" : "全画面"}
-            </button>
-          ) : null}
-          <Link href="/" className="kiosk-control no-underline">
-            通常表示
-          </Link>
-        </div>
       </div>
 
       {state.historyLoading ? (
@@ -455,52 +439,6 @@ function PersistentNotice({
           {warning.detail}
         </span>
       ) : null}
-      {currentError ? (
-        <button
-          type="button"
-          className="kiosk-text-button"
-          onClick={() => void onRetry()}
-        >
-          再試行
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function StatusSummary({
-  collectionState,
-  warnings,
-  lastFullSuccessAt,
-  currentError,
-  onRetry,
-}: {
-  collectionState: "initializing" | "healthy" | "degraded" | "stopped" | null;
-  warnings: DashboardWarning[];
-  lastFullSuccessAt: ReturnType<typeof toDisplayTimestamp> | null;
-  currentError: boolean;
-  onRetry: () => Promise<void>;
-}): ReactElement {
-  const warning = warnings[0];
-  const label =
-    warning?.title ??
-    (collectionState === "healthy"
-      ? "収集正常"
-      : collectionState === "initializing"
-        ? "初回収集待ち"
-        : "収集状態を確認中");
-  return (
-    <div className="flex basis-full items-center justify-center gap-2 border-b border-[var(--hairline)] sm:basis-auto sm:justify-start sm:border-b-0">
-      <span
-        aria-hidden="true"
-        className={`h-1.5 w-1.5 shrink-0 rounded-full ${warning?.severity === "danger" ? "bg-[var(--danger)]" : warning ? "bg-[var(--warning)]" : "bg-[var(--gold)]"}`}
-      />
-      <p className="m-0 max-w-[13rem] truncate text-xs text-[var(--ink-secondary)]">
-        {currentError ? "最新情報を取得できません" : label}
-        {lastFullSuccessAt
-          ? ` · ${formatAge(lastFullSuccessAt.ageSeconds)}`
-          : ""}
-      </p>
       {currentError ? (
         <button
           type="button"

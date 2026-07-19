@@ -41,7 +41,7 @@ async function expectNoDocumentOverflow(page: Page): Promise<void> {
 }
 
 function kioskDock(page: Page) {
-  return page.getByTestId("kiosk-control-dock");
+  return page.getByTestId("kiosk-header-menu");
 }
 
 async function expectKioskDockHidden(page: Page): Promise<void> {
@@ -58,6 +58,83 @@ async function revealKioskDock(page: Page): Promise<void> {
   await expect(kioskDock(page)).toHaveAttribute("data-menu-visible", "true", {
     timeout: 1_000,
   });
+}
+
+async function expectKioskDockGeometry(
+  page: Page,
+  viewport: (typeof VIEWPORTS)[number],
+): Promise<void> {
+  const dock = kioskDock(page);
+  const header = page.getByTestId("kiosk-header");
+  const current = page.getByRole("region", { name: "現在の室内環境" });
+  const aircon = page.getByRole("region", {
+    name: "エアコン - Nature Remo認識状態",
+  });
+  const chart = page.getByRole("img", {
+    name: /温度、湿度、Nature Remo認識エアコン設定温度/,
+  });
+  const [dockBox, headerBox, currentBox, airconBox, chartBox] =
+    await Promise.all([
+      dock.boundingBox(),
+      header.boundingBox(),
+      current.boundingBox(),
+      aircon.boundingBox(),
+      chart.boundingBox(),
+    ]);
+  expect(dockBox).not.toBeNull();
+  expect(headerBox).not.toBeNull();
+  expect(currentBox).not.toBeNull();
+  expect(airconBox).not.toBeNull();
+  expect(chartBox).not.toBeNull();
+  if (!dockBox || !headerBox || !currentBox || !airconBox || !chartBox) return;
+
+  const dockRight = dockBox.x + dockBox.width;
+  const dockBottom = dockBox.y + dockBox.height;
+  const chartAxisBandTop = chartBox.y + chartBox.height * 0.78;
+
+  expect(dockBox.x).toBeGreaterThanOrEqual(0);
+  expect(dockBox.y).toBeGreaterThanOrEqual(0);
+  expect(dockRight).toBeLessThanOrEqual(viewport.width);
+  expect(dockBottom).toBeLessThanOrEqual(viewport.height);
+  expect(dockBox.y).toBeLessThan(viewport.height / 2);
+  // The header's responsive horizontal padding is 20/32/48px; allow an 8px
+  // visual tolerance while still requiring the dock to be right aligned.
+  const headerPadding =
+    viewport.width >= 1024 ? 48 : viewport.width >= 640 ? 32 : 20;
+  expect(dockRight).toBeGreaterThanOrEqual(viewport.width - headerPadding - 8);
+  expect(dockBottom).toBeLessThan(chartAxisBandTop);
+
+  const overlaps = (
+    first: NonNullable<typeof dockBox>,
+    second: NonNullable<typeof dockBox>,
+  ): boolean =>
+    first.x < second.x + second.width &&
+    first.x + first.width > second.x &&
+    first.y < second.y + second.height &&
+    first.y + first.height > second.y;
+  expect(overlaps(dockBox, currentBox)).toBe(false);
+  expect(overlaps(dockBox, airconBox)).toBe(false);
+
+  const flatStyle = await dock.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      backgroundColor: style.backgroundColor,
+      borderTopWidth: style.borderTopWidth,
+      borderRightWidth: style.borderRightWidth,
+      borderBottomWidth: style.borderBottomWidth,
+      borderLeftWidth: style.borderLeftWidth,
+      borderRadius: style.borderRadius,
+    };
+  });
+  expect(flatStyle).toEqual({
+    backgroundColor: "rgba(0, 0, 0, 0)",
+    borderTopWidth: "0px",
+    borderRightWidth: "0px",
+    borderBottomWidth: "0px",
+    borderLeftWidth: "0px",
+    borderRadius: "0px",
+  });
+  await expect(dock.getByText("収集正常", { exact: false })).toHaveCount(0);
 }
 
 async function expectKioskSurface(page: Page): Promise<void> {
@@ -77,12 +154,37 @@ async function expectKioskSurface(page: Page): Promise<void> {
   await expect(chart.locator("canvas")).toBeVisible({ timeout: 15_000 });
   await expectKioskDockHidden(page);
   await revealKioskDock(page);
-  await expect(page.getByRole("button", { name: "24時間" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "7日" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "30日" })).toBeVisible();
-  await expect(page.getByRole("radiogroup", { name: "テーマ" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "24時間" })).toHaveText("24h");
+  await expect(page.getByRole("button", { name: "7日" })).toHaveText("7d");
+  await expect(page.getByRole("button", { name: "30日" })).toHaveText("30d");
+  await expect(page.getByTestId("kiosk-theme-trigger")).toBeVisible();
+  await expect(
+    page.getByTestId("kiosk-theme-trigger").locator("svg"),
+  ).toHaveCount(1);
   await expect(page.getByRole("button", { name: "全画面" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "全画面" }).locator("svg"),
+  ).toHaveCount(1);
   await expect(page.getByRole("link", { name: "通常表示" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "通常表示" }).locator("svg"),
+  ).toHaveCount(1);
+  await expect(page.getByText("収集正常", { exact: false })).toHaveCount(0);
+
+  const brand = page.getByText("Ambient Lapis", { exact: true });
+  if (viewportWidth(page) < 640) {
+    await expect
+      .poll(() =>
+        brand.evaluate((element) => getComputedStyle(element).opacity),
+      )
+      .toBe("0");
+  } else {
+    await expect(brand).toBeVisible();
+  }
+}
+
+function viewportWidth(page: Page): number {
+  return page.viewportSize()?.width ?? 0;
 }
 
 for (const viewport of VIEWPORTS) {
@@ -97,6 +199,7 @@ for (const viewport of VIEWPORTS) {
 
     await page.goto("/kiosk");
     await expectKioskSurface(page);
+    await expectKioskDockGeometry(page, viewport);
     await expectNoDocumentOverflow(page);
 
     const kioskBox = await page.locator("main.kiosk").boundingBox();
@@ -138,7 +241,10 @@ test.describe("kiosk navigation and controls", () => {
       "true",
     );
 
-    for (const name of ["7日", "30日"] as const) {
+    for (const [name, label] of [
+      ["7日", "7d"],
+      ["30日", "30d"],
+    ] as const) {
       const seriesRequest = page.waitForRequest((request) =>
         request.url().includes("/api/v1/environment/series"),
       );
@@ -149,18 +255,47 @@ test.describe("kiosk navigation and controls", () => {
         "aria-pressed",
         "true",
       );
+      await expect(page.getByRole("button", { name })).toHaveText(label);
     }
   });
 
   test("shares the persisted theme preference", async ({ page }) => {
     await page.goto("/kiosk");
     await revealKioskDock(page);
-    await page.getByRole("radio", { name: "ダーク" }).click();
+    const themeTrigger = page.getByTestId("kiosk-theme-trigger");
+    await themeTrigger.click();
+    const themeMenu = page.getByTestId("kiosk-theme-menu");
+    await expect(themeMenu).toBeVisible();
+    await themeMenu.getByRole("menuitemradio", { name: "ダーク" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await revealKioskDock(page);
-    await page.getByRole("radio", { name: "自動" }).click();
+    await page.getByTestId("kiosk-theme-trigger").click();
+    await page
+      .getByTestId("kiosk-theme-menu")
+      .getByRole("menuitemradio", { name: "自動" })
+      .click();
+  });
+
+  test("theme menu has three choices and closes with keyboard Escape", async ({
+    page,
+  }) => {
+    await page.goto("/kiosk");
+    await revealKioskDock(page);
+    const trigger = page.getByTestId("kiosk-theme-trigger");
+    await expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await trigger.click();
+    const menu = page.getByTestId("kiosk-theme-menu");
+    await expect(menu).toBeVisible();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+    await expect(menu.getByRole("menuitemradio")).toHaveCount(3);
+    await page.keyboard.press("ArrowDown");
+    await expect(menu).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
   test("requests fullscreen only from the visible user control", async ({
@@ -204,7 +339,9 @@ test.describe("kiosk navigation and controls", () => {
     await expectKioskDockHidden(page);
 
     await revealKioskDock(page);
-    await expect(page.getByRole("button", { name: "24時間" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "24時間" })).toHaveText(
+      "24h",
+    );
 
     await page.keyboard.press("Escape");
     await expectKioskDockHidden(page);

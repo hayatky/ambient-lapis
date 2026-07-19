@@ -3,7 +3,7 @@ import { fixtureScenarios } from "@/test/fixtures";
 
 import {
   buildChartOption,
-  computeKioskPanelLayout,
+  computeSimplePanelLayout,
   computePanelLayout,
   humidityAxisBounds,
   selectNearestChartData,
@@ -173,25 +173,25 @@ describe("buildChartOption", () => {
     expect(coarse.showContent).toBe(true);
   });
 
-  it("suppresses floating tooltip content only in kiosk mode", () => {
+  it("suppresses floating tooltip content only in simple mode", () => {
     const dashboard = build({ variant: "dashboard" }).tooltip as {
       showContent: boolean;
       axisPointer: { type: string };
     };
-    const kiosk = build({ variant: "kiosk" }).tooltip as {
+    const simple = build({ variant: "simple" }).tooltip as {
       showContent: boolean;
       axisPointer: { type: string };
     };
-    const kioskCoarse = build({
-      variant: "kiosk",
+    const simpleCoarse = build({
+      variant: "simple",
       pointerType: "coarse",
     }).tooltip as { showContent: boolean };
     expect(dashboard.showContent).toBe(true);
-    expect(kiosk.showContent).toBe(false);
-    expect(kioskCoarse.showContent).toBe(false);
+    expect(simple.showContent).toBe(false);
+    expect(simpleCoarse.showContent).toBe(false);
     // The axis pointer remains active so the chart can continue to drive the
-    // kiosk crosshair and selected-value panel.
-    expect(kiosk.axisPointer.type).toBe("line");
+    // simple crosshair and selected-value panel.
+    expect(simple.axisPointer.type).toBe("line");
   });
 
   it("formats a Japanese tooltip with measurement details", () => {
@@ -238,9 +238,9 @@ describe("computePanelLayout", () => {
   });
 });
 
-describe("kiosk chart variant", () => {
+describe("simple chart variant", () => {
   it("uses viewport-safe vertical space and aligned independent grids", () => {
-    const option = build({ variant: "kiosk", widthPx: 390, heightPx: 844 });
+    const option = build({ variant: "simple", widthPx: 390, heightPx: 844 });
     const grids = option.grid as {
       left: number;
       right: number;
@@ -262,39 +262,54 @@ describe("kiosk chart variant", () => {
   });
 
   it("starts below the full top overlay at every supported viewport", () => {
-    const compact = computeKioskPanelLayout(844, 390);
-    const tablet = computeKioskPanelLayout(1024, 768);
-    const desktop = computeKioskPanelLayout(900, 1440);
+    const compact = computeSimplePanelLayout(844, 390);
+    const tablet = computeSimplePanelLayout(1024, 768);
+    const desktop = computeSimplePanelLayout(900, 1440);
     expect(compact.temperatureTop).toBe(252);
     expect(tablet.temperatureTop).toBe(252);
     expect(desktop.temperatureTop).toBe(252);
     expect(compact.temperatureHeight).toBeGreaterThan(compact.humidityHeight);
   });
 
-  it("uses a stronger linked crosshair only in kiosk mode", () => {
+  it("reserves the time-axis label and selection panel band below the ribbon", () => {
+    // The band between the ribbon grid's bottom edge and the viewport bottom
+    // must fit the shared time-axis labels (10px axisLabel margin + ~15px of
+    // 11px text) plus the selection panel (~62px) inside simple.tsx's bottom
+    // overlay container (18px sm+ bottom padding) with safe-area clearance.
+    // Desktop reserves 128px, mobile 160px; any reduction lets the selection
+    // panel overlap the time-axis labels.
+    const desktop = computeSimplePanelLayout(900, 1440);
+    const tablet = computeSimplePanelLayout(1024, 768);
+    const compact = computeSimplePanelLayout(844, 390);
+    expect(900 - (desktop.ribbonTop + desktop.ribbonHeight)).toBe(128);
+    expect(1024 - (tablet.ribbonTop + tablet.ribbonHeight)).toBe(128);
+    expect(844 - (compact.ribbonTop + compact.ribbonHeight)).toBe(160);
+  });
+
+  it("uses a stronger linked crosshair only in simple mode", () => {
     const dashboardPointer = build().axisPointer as {
       lineStyle: { opacity: number; width: number };
     };
-    const kiosk = build({ variant: "kiosk" });
-    const kioskPointer = kiosk.axisPointer as {
+    const simple = build({ variant: "simple" });
+    const simplePointer = simple.axisPointer as {
       lineStyle: { opacity: number; width: number };
     };
-    const kioskTooltip = kiosk.tooltip as {
+    const simpleTooltip = simple.tooltip as {
       axisPointer: { lineStyle: { opacity: number; width: number } };
     };
     expect(dashboardPointer.lineStyle).toMatchObject({
       opacity: 0.45,
       width: 1,
     });
-    expect(kioskPointer.lineStyle).toMatchObject({ opacity: 0.82, width: 1.5 });
-    expect(kioskTooltip.axisPointer.lineStyle).toMatchObject({
+    expect(simplePointer.lineStyle).toMatchObject({ opacity: 0.82, width: 1.5 });
+    expect(simpleTooltip.axisPointer.lineStyle).toMatchObject({
       opacity: 0.82,
       width: 1.5,
     });
   });
 
   it("preserves target-temperature and ribbon honesty rules", () => {
-    const option = build({ variant: "kiosk", widthPx: 1440, heightPx: 900 });
+    const option = build({ variant: "simple", widthPx: 1440, heightPx: 900 });
     const target = seriesOf(option)[2];
     const ribbon = seriesOf(option)[3] as unknown as {
       data: { value: [number, number, number] }[];

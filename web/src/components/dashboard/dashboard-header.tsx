@@ -32,10 +32,10 @@ export function DashboardHeader({ now }: DashboardHeaderProps): ReactElement {
       <div className="ml-auto">
         <div className="flex items-center gap-3">
           <Link
-            href="/kiosk"
+            href="/simple"
             className="min-h-[44px] content-center text-[0.8125rem] font-medium text-[var(--ink-secondary)] no-underline transition-colors hover:text-[var(--ink)]"
           >
-            キオスク表示
+            シンプル表示
           </Link>
           <ThemeToggle />
         </div>

@@ -12,7 +12,7 @@ import {
   EnvironmentChart,
   type EnvironmentChartSelection,
 } from "@/components/dashboard/environment-chart";
-import { useKioskData, type KioskInitialData } from "@/hooks/use-kiosk-data";
+import { useSimpleData, type SimpleInitialData } from "@/hooks/use-simple-data";
 import { useNow } from "@/hooks/use-now";
 import type { CurrentData, StatusData } from "@/lib/api/schemas";
 import {
@@ -31,7 +31,7 @@ import {
 
 import { HeaderMenu } from "./header-menu";
 
-type KioskPreset = "24h" | "7d" | "30d";
+type SimplePreset = "24h" | "7d" | "30d";
 
 const selectionTimeFormatter = new Intl.DateTimeFormat("ja-JP", {
   timeZone: "Asia/Tokyo",
@@ -42,18 +42,18 @@ const selectionTimeFormatter = new Intl.DateTimeFormat("ja-JP", {
   hourCycle: "h23",
 });
 
-export interface KioskProps {
-  initial: KioskInitialData;
+export interface SimpleProps {
+  initial: SimpleInitialData;
   serverNowIso: string;
 }
 
-export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
+export function Simple({ initial, serverNowIso }: SimpleProps): ReactElement {
   const now = useNow(serverNowIso);
-  const [preset, setPreset] = useState<KioskPreset>("24h");
+  const [preset, setPreset] = useState<SimplePreset>("24h");
   const [period, setPeriod] = useState<ResolvedPeriod>(() =>
     resolvePresetPeriod("24h", new Date(serverNowIso)),
   );
-  const { state, refreshCurrent, loadHistory } = useKioskData(
+  const { state, refreshCurrent, loadHistory } = useSimpleData(
     initial,
     period,
     setPeriod,
@@ -159,7 +159,7 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
         await document.documentElement.requestFullscreen();
       }
     } catch {
-      // Fullscreen is optional and browser-controlled. Keep the kiosk usable
+      // Fullscreen is optional and browser-controlled. Keep the simple usable
       // when permission or platform policy rejects the request.
     }
   }, []);
@@ -175,7 +175,7 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
   const warnings = mapAvailableWarnings(state.status, state.current);
 
   const changePreset = useCallback(
-    (next: KioskPreset): void => {
+    (next: SimplePreset): void => {
       if (next === preset) return;
       const nextPeriod = resolvePresetPeriod(next, new Date());
       setPreset(next);
@@ -195,8 +195,8 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
   const hasDanger = warnings.some((warning) => warning.severity === "danger");
   useEffect(() => {
     document.title = hasDanger
-      ? "⚠ Ambient Lapis — Kiosk"
-      : "Ambient Lapis — Kiosk";
+      ? "⚠ Ambient Lapis — Simple"
+      : "Ambient Lapis — Simple";
   }, [hasDanger]);
 
   const displayedPeriod = state.historyPeriod ?? period;
@@ -209,9 +209,9 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
 
   return (
     <main
-      data-testid="kiosk-root"
-      className={`kiosk fixed inset-0 isolate h-[100dvh] overflow-hidden bg-[var(--canvas)] text-[var(--ink)] ${
-        hasDanger ? "kiosk-danger" : ""
+      data-testid="simple-root"
+      className={`simple fixed inset-0 isolate h-[100dvh] overflow-hidden bg-[var(--canvas)] text-[var(--ink)] ${
+        hasDanger ? "simple-danger" : ""
       }`}
       onPointerMove={revealDock}
       onTouchStart={revealDock}
@@ -222,14 +222,14 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
             series={environmentSeries}
             airconSegments={airconSegments}
             range={range}
-            variant="kiosk"
+            variant="simple"
             className="h-full min-h-0 w-full"
             ariaLabel={`${periodLabel(displayedPeriod)}の温度、湿度、Nature Remo認識エアコン設定温度`}
             onSelectionChange={setSelection}
           />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <div className="kiosk-surface relative z-10 max-w-xs px-6 py-5 text-center">
+            <div className="simple-surface relative z-10 max-w-xs px-6 py-5 text-center">
               <p className="m-0 text-sm text-[var(--ink-secondary)]">
                 表示できる履歴はまだありません
               </p>
@@ -239,13 +239,13 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
       </div>
 
       <header
-        data-testid="kiosk-header"
+        data-testid="simple-header"
         className="pointer-events-none absolute inset-x-0 top-0 z-30 px-5 pt-[max(18px,env(safe-area-inset-top))] sm:px-8 sm:pt-[max(26px,env(safe-area-inset-top))] lg:px-12"
       >
         <div className="flex min-h-11 items-start justify-between">
           <p
-            data-testid="kiosk-brand"
-            className={`kiosk-brand m-0 shrink-0 pt-3 text-[0.72rem] font-medium tracking-[0.14em] text-[var(--ink-muted)] ${dockVisible ? "kiosk-brand-menu-visible" : ""}`}
+            data-testid="simple-brand"
+            className={`simple-brand m-0 shrink-0 pt-3 text-[0.72rem] font-medium tracking-[0.14em] text-[var(--ink-muted)] ${dockVisible ? "simple-brand-menu-visible" : ""}`}
           >
             Ambient Lapis
           </p>
@@ -344,18 +344,18 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
       </section>
 
       <div
-        data-testid="kiosk-bottom-overlays"
+        data-testid="simple-bottom-overlays"
         className="absolute inset-x-0 bottom-0 z-30 flex flex-col items-center px-3 pb-[max(10px,env(safe-area-inset-bottom))] sm:px-6 sm:pb-[max(18px,env(safe-area-inset-bottom))]"
       >
         {state.historyError ? (
           <div
             role="alert"
-            className="kiosk-surface flex items-center gap-3 px-3 text-xs text-[var(--warning)]"
+            className="simple-surface flex items-center gap-3 px-3 text-xs text-[var(--warning)]"
           >
             履歴更新失敗
             <button
               type="button"
-              className="kiosk-text-button"
+              className="simple-text-button"
               onClick={retryHistory}
             >
               再試行
@@ -430,7 +430,7 @@ function PersistentNotice({
   return (
     <div
       role="alert"
-      className="kiosk-surface flex max-w-[min(880px,calc(100vw-1.5rem))] items-center gap-3 px-3 text-xs text-[var(--warning)]"
+      className="simple-surface flex max-w-[min(880px,calc(100vw-1.5rem))] items-center gap-3 px-3 text-xs text-[var(--warning)]"
     >
       {currentError ? <span>最新情報を取得できません</span> : null}
       {warning ? <span>{warning.title}</span> : null}
@@ -442,7 +442,7 @@ function PersistentNotice({
       {currentError ? (
         <button
           type="button"
-          className="kiosk-text-button"
+          className="simple-text-button"
           onClick={() => void onRetry()}
         >
           再試行
@@ -459,36 +459,50 @@ function SelectionPanel({
   selection: EnvironmentChartSelection;
   onClose: () => void;
 }): ReactElement {
+  const pointGap = selection.point?.gap === true;
   const temperature = selection.point?.temperature.value ?? null;
   const humidity = selection.point?.humidity.value ?? null;
   const target = selection.airconSegment?.targetTemperatureC ?? null;
   const difference =
     temperature !== null && target !== null ? temperature - target : null;
-  const airconLabel = selection.airconSegment
-    ? selection.airconSegment.state === "on"
-      ? "運転中"
-      : selection.airconSegment.state === "off"
+  const segment = selection.airconSegment;
+  const airconLabel = segment
+    ? segment.state === "on"
+      ? segment.mode
+        ? `運転中・${segment.mode}`
+        : "運転中"
+      : segment.state === "off"
         ? "停止"
-        : selection.airconSegment.state === "gap"
-          ? "欠損"
+        : segment.state === "gap"
+          ? "データなし"
           : "不明"
     : "--";
   return (
     <section
       aria-label="選択時刻の詳細"
-      className="kiosk-surface flex max-w-full items-center gap-4 px-4 py-2 text-xs sm:gap-7 sm:px-6"
+      className="simple-surface flex max-w-full items-center gap-4 px-4 py-2 text-xs sm:gap-7 sm:px-6"
     >
       <p className="m-0 whitespace-nowrap font-medium text-[var(--ink)]">
         {selectionTimeFormatter.format(selection.epochMs)}
       </p>
-      <Detail
-        label="温度"
-        value={temperature === null ? "--" : `${temperature.toFixed(1)} °C`}
-      />
-      <Detail
-        label="湿度"
-        value={humidity === null ? "--" : `${humidity.toFixed(0)} %`}
-      />
+      {pointGap ? (
+        <p className="m-0 whitespace-nowrap text-[var(--ink-secondary)]">
+          データなし(欠損)
+        </p>
+      ) : (
+        <>
+          <Detail
+            label="温度"
+            value={temperature === null ? "--" : `${temperature.toFixed(1)} °C`}
+            dotClassName="bg-[var(--temperature)]"
+          />
+          <Detail
+            label="湿度"
+            value={humidity === null ? "--" : `${humidity.toFixed(0)} %`}
+            dotClassName="bg-[var(--humidity)]"
+          />
+        </>
+      )}
       <Detail
         label="Remo"
         value={selection.point?.remoOnlineState ?? "--"}
@@ -513,7 +527,7 @@ function SelectionPanel({
         type="button"
         aria-label="詳細を閉じる"
         onClick={onClose}
-        className="kiosk-control px-2"
+        className="simple-control px-2"
       >
         ×
       </button>
@@ -525,17 +539,27 @@ function Detail({
   label,
   value,
   optional = false,
+  dotClassName,
 }: {
   label: string;
   value: string;
   optional?: boolean;
+  dotClassName?: string;
 }): ReactElement {
   return (
     <p
-      className={`m-0 whitespace-nowrap ${optional ? "hidden min-[680px]:block" : ""}`}
+      className={`m-0 whitespace-nowrap ${optional ? "hidden min-[820px]:block" : ""}`}
     >
+      {dotClassName ? (
+        <span
+          aria-hidden="true"
+          className={`mr-1 inline-block h-2 w-2 rounded-full ${dotClassName}`}
+        />
+      ) : null}
       <span className="text-[var(--ink-muted)]">{label} </span>
-      <span className="font-medium text-[var(--ink)]">{value}</span>
+      <span className="font-medium tabular-nums text-[var(--ink)]">
+        {value}
+      </span>
     </p>
   );
 }

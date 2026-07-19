@@ -7,29 +7,42 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import type { KioskInitialData } from "@/hooks/use-kiosk-data";
+import type { EnvironmentChartSelection } from "@/components/dashboard/environment-chart";
+import type { SimpleInitialData } from "@/hooks/use-simple-data";
+import type {
+  AirconSegmentViewModel,
+  ChartMetricViewModel,
+  DisplayTimestamp,
+  EnvironmentChartPointViewModel,
+} from "@/lib/view-model";
 import { FIXTURE_NOW, fixtureScenarios } from "@/test/fixtures";
 
-import { Kiosk } from "./kiosk";
+import { Simple } from "./simple";
+
+const emittedSelection = vi.hoisted(() => ({
+  current: null as EnvironmentChartSelection | null,
+}));
 
 vi.mock("@/components/dashboard/environment-chart", () => ({
   EnvironmentChart: ({
     onSelectionChange,
     ariaLabel,
   }: {
-    onSelectionChange?: (value: unknown) => void;
+    onSelectionChange?: (value: EnvironmentChartSelection | null) => void;
     ariaLabel: string;
   }) => (
     <button
       type="button"
-      data-testid="kiosk-chart"
+      data-testid="simple-chart"
       data-aria-label={ariaLabel}
       onClick={() =>
-        onSelectionChange?.({
-          epochMs: Date.parse(FIXTURE_NOW),
-          point: null,
-          airconSegment: null,
-        })
+        onSelectionChange?.(
+          emittedSelection.current ?? {
+            epochMs: Date.parse(FIXTURE_NOW),
+            point: null,
+            airconSegment: null,
+          },
+        )
       }
     >
       chart
@@ -54,7 +67,7 @@ vi.mock("@/lib/api/browser-client", () => ({
 }));
 
 const scenario = fixtureScenarios.normal;
-const initial: KioskInitialData = {
+const initial: SimpleInitialData = {
   status: scenario.status.data,
   current: scenario.current.data,
   currentFailed: false,
@@ -63,8 +76,55 @@ const initial: KioskInitialData = {
   historyFailed: false,
 };
 
+function displayTimestamp(iso: string): DisplayTimestamp {
+  return { iso, epochMs: Date.parse(iso), label: iso, ageSeconds: 0 };
+}
+
+function chartMetric(value: number | null): ChartMetricViewModel {
+  return {
+    value,
+    minimum: null,
+    maximum: null,
+    observedAt: null,
+    sampleCount: null,
+  };
+}
+
+const selectedPoint: EnvironmentChartPointViewModel = {
+  time: displayTimestamp("2026-07-18T12:25:00.000Z"),
+  temperature: chartMetric(26.1),
+  humidity: chartMetric(57),
+  remoOnlineState: "online",
+  gap: false,
+};
+
+const gapPoint: EnvironmentChartPointViewModel = {
+  time: displayTimestamp("2026-07-18T12:30:00.000Z"),
+  temperature: chartMetric(null),
+  humidity: chartMetric(null),
+  remoOnlineState: "unknown",
+  gap: true,
+};
+
+const coolingSegment: AirconSegmentViewModel = {
+  from: displayTimestamp("2026-07-18T12:00:00.000Z"),
+  to: displayTimestamp("2026-07-18T12:30:00.000Z"),
+  state: "on",
+  mode: "冷房",
+  targetTemperatureC: 26,
+};
+
+const gapSegment: AirconSegmentViewModel = {
+  from: displayTimestamp("2026-07-18T12:30:00.000Z"),
+  to: displayTimestamp("2026-07-18T12:35:00.000Z"),
+  state: "gap",
+  mode: null,
+  targetTemperatureC: null,
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  emittedSelection.current = null;
   window.localStorage.clear();
   Object.defineProperty(document, "fullscreenEnabled", {
     configurable: true,
@@ -94,9 +154,9 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("Kiosk", () => {
+describe("Simple", () => {
   it("keeps current values and reveals controls after interaction", async () => {
-    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
     expect(
       screen.getByRole("region", { name: "現在の室内環境" }),
     ).toHaveTextContent("26.4");
@@ -106,20 +166,20 @@ describe("Kiosk", () => {
     expect(
       screen.getByRole("region", { name: "エアコン - Nature Remo認識状態" }),
     ).toHaveTextContent("運転中");
-    const root = screen.getByTestId("kiosk-root");
-    const dock = screen.getByTestId("kiosk-header-menu");
-    expect(screen.getByTestId("kiosk-header")).toContainElement(dock);
-    expect(screen.getByTestId("kiosk-bottom-overlays")).not.toContainElement(
+    const root = screen.getByTestId("simple-root");
+    const dock = screen.getByTestId("simple-header-menu");
+    expect(screen.getByTestId("simple-header")).toContainElement(dock);
+    expect(screen.getByTestId("simple-bottom-overlays")).not.toContainElement(
       dock,
     );
     expect(dock).toHaveAttribute("data-menu-visible", "false");
-    expect(screen.getByTestId("kiosk-brand")).not.toHaveClass(
-      "kiosk-brand-menu-visible",
+    expect(screen.getByTestId("simple-brand")).not.toHaveClass(
+      "simple-brand-menu-visible",
     );
     fireEvent.touchStart(root);
     expect(dock).toHaveAttribute("data-menu-visible", "true");
-    expect(screen.getByTestId("kiosk-brand")).toHaveClass(
-      "kiosk-brand-menu-visible",
+    expect(screen.getByTestId("simple-brand")).toHaveClass(
+      "simple-brand-menu-visible",
     );
     expect(screen.getByRole("button", { name: "24時間" })).toBeInTheDocument();
     expect(
@@ -129,7 +189,7 @@ describe("Kiosk", () => {
       "href",
       "/",
     );
-    expect(screen.getByTestId("kiosk-theme-trigger")).toBeInTheDocument();
+    expect(screen.getByTestId("simple-theme-trigger")).toBeInTheDocument();
     expect(screen.queryByText("収集正常")).not.toBeInTheDocument();
     expect(screen.queryByText(/双方向確認/)).not.toBeInTheDocument();
     fireEvent.keyDown(document, { key: "Escape" });
@@ -140,11 +200,11 @@ describe("Kiosk", () => {
 
   it("loads a new range and exposes selected chart details", async () => {
     const user = userEvent.setup();
-    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
-    fireEvent.pointerMove(screen.getByTestId("kiosk-root"));
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
+    fireEvent.pointerMove(screen.getByTestId("simple-root"));
     await user.click(screen.getByRole("button", { name: "7日" }));
     expect(environmentSeriesMock).toHaveBeenCalledTimes(1);
-    await user.click(screen.getByTestId("kiosk-chart"));
+    await user.click(screen.getByTestId("simple-chart"));
     expect(
       screen.getByRole("region", { name: "選択時刻の詳細" }),
     ).toBeInTheDocument();
@@ -154,9 +214,70 @@ describe("Kiosk", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows aircon mode, target, and signed room delta for a selected point", async () => {
+    const user = userEvent.setup();
+    emittedSelection.current = {
+      epochMs: selectedPoint.time.epochMs,
+      point: selectedPoint,
+      airconSegment: coolingSegment,
+    };
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
+    await user.click(screen.getByTestId("simple-chart"));
+    const panel = screen.getByRole("region", { name: "選択時刻の詳細" });
+    expect(panel).toHaveTextContent("温度");
+    expect(panel).toHaveTextContent("26.1 °C");
+    expect(panel).toHaveTextContent("湿度");
+    expect(panel).toHaveTextContent("57 %");
+    expect(panel).toHaveTextContent("運転中・冷房");
+    expect(panel).toHaveTextContent("26.0 °C");
+    expect(panel).toHaveTextContent("+0.1 °C");
+    const dots = panel.querySelectorAll("span.rounded-full");
+    expect(dots).toHaveLength(2);
+    expect(dots[0]?.getAttribute("class") ?? "").toContain(
+      "bg-[var(--temperature)]",
+    );
+    expect(dots[1]?.getAttribute("class") ?? "").toContain(
+      "bg-[var(--humidity)]",
+    );
+  });
+
+  it("replaces temperature and humidity with a gap notice for a gap point", async () => {
+    const user = userEvent.setup();
+    emittedSelection.current = {
+      epochMs: gapPoint.time.epochMs,
+      point: gapPoint,
+      airconSegment: null,
+    };
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
+    await user.click(screen.getByTestId("simple-chart"));
+    const panel = screen.getByRole("region", { name: "選択時刻の詳細" });
+    expect(panel).toHaveTextContent("データなし(欠損)");
+    expect(panel).not.toHaveTextContent("温度");
+    expect(panel).not.toHaveTextContent("湿度");
+    expect(panel.querySelectorAll("span.rounded-full")).toHaveLength(0);
+    expect(panel).toHaveTextContent("Remo unknown");
+    expect(panel).toHaveTextContent("エアコン認識 --");
+    expect(panel).toHaveTextContent("設定 --");
+    expect(panel).toHaveTextContent("室温差 --");
+  });
+
+  it("labels a gap aircon segment as データなし", async () => {
+    const user = userEvent.setup();
+    emittedSelection.current = {
+      epochMs: selectedPoint.time.epochMs,
+      point: selectedPoint,
+      airconSegment: gapSegment,
+    };
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
+    await user.click(screen.getByTestId("simple-chart"));
+    const panel = screen.getByRole("region", { name: "選択時刻の詳細" });
+    expect(panel).toHaveTextContent("エアコン認識 データなし");
+    expect(panel).not.toHaveTextContent("欠損");
+  });
+
   it("keeps successful current values and history when status failed", () => {
     render(
-      <Kiosk
+      <Simple
         initial={{ ...initial, status: null, currentFailed: true }}
         serverNowIso={FIXTURE_NOW}
       />,
@@ -167,13 +288,13 @@ describe("Kiosk", () => {
     expect(
       screen.getByRole("region", { name: "エアコン - Nature Remo認識状態" }),
     ).toHaveTextContent("運転中");
-    expect(screen.getByTestId("kiosk-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("simple-chart")).toBeInTheDocument();
   });
 
   it("keeps a severe collection warning visible while the dock is hidden", () => {
     const stopped = fixtureScenarios.collectionStopped;
     render(
-      <Kiosk
+      <Simple
         initial={{
           status: stopped.status.data,
           current: stopped.current.data,
@@ -188,7 +309,7 @@ describe("Kiosk", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "データ収集が停止しています",
     );
-    expect(screen.getByTestId("kiosk-header-menu")).toHaveAttribute(
+    expect(screen.getByTestId("simple-header-menu")).toHaveAttribute(
       "data-menu-visible",
       "false",
     );
@@ -196,7 +317,7 @@ describe("Kiosk", () => {
 
   it("shows the empty state instead of a chart canvas for an empty series", () => {
     render(
-      <Kiosk
+      <Simple
         initial={{
           ...initial,
           environmentSeries: {
@@ -210,15 +331,15 @@ describe("Kiosk", () => {
     expect(
       screen.getByText("表示できる履歴はまだありません"),
     ).toBeInTheDocument();
-    expect(screen.queryByTestId("kiosk-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("simple-chart")).not.toBeInTheDocument();
   });
 
   it("keeps the old chart range and shows retry when a period refresh partially fails", async () => {
     airconSeriesMock.mockRejectedValue(new Error("unavailable"));
     const user = userEvent.setup();
-    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
-    fireEvent.pointerMove(screen.getByTestId("kiosk-root"));
-    expect(screen.getByTestId("kiosk-chart")).toHaveAttribute(
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
+    fireEvent.pointerMove(screen.getByTestId("simple-root"));
+    expect(screen.getByTestId("simple-chart")).toHaveAttribute(
       "data-aria-label",
       expect.stringContaining("24時間"),
     );
@@ -226,7 +347,7 @@ describe("Kiosk", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent("履歴更新失敗"),
     );
-    expect(screen.getByTestId("kiosk-chart")).toHaveAttribute(
+    expect(screen.getByTestId("simple-chart")).toHaveAttribute(
       "data-aria-label",
       expect.stringContaining("24時間"),
     );
@@ -238,7 +359,7 @@ describe("Kiosk", () => {
       configurable: true,
       value: false,
     });
-    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
     await waitFor(() =>
       expect(
         screen.queryByRole("button", { name: /全画面/ }),
@@ -246,11 +367,11 @@ describe("Kiosk", () => {
     );
   });
 
-  it("keeps the kiosk usable when fullscreen permission is rejected", async () => {
+  it("keeps the simple usable when fullscreen permission is rejected", async () => {
     requestFullscreenMock.mockRejectedValue(new Error("denied"));
     const user = userEvent.setup();
-    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
-    fireEvent.pointerMove(screen.getByTestId("kiosk-root"));
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
+    fireEvent.pointerMove(screen.getByTestId("simple-root"));
     const button = await screen.findByRole("button", { name: "全画面" });
     await user.click(button);
     expect(requestFullscreenMock).toHaveBeenCalledTimes(1);
@@ -259,9 +380,9 @@ describe("Kiosk", () => {
 
   it("reveals on interaction, hides after idle, and stays open while focused", () => {
     vi.useFakeTimers();
-    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
-    const root = screen.getByTestId("kiosk-root");
-    const dock = screen.getByTestId("kiosk-header-menu");
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
+    const root = screen.getByTestId("simple-root");
+    const dock = screen.getByTestId("simple-header-menu");
 
     expect(dock).toHaveAttribute("data-menu-visible", "false");
     fireEvent.pointerMove(root);
@@ -289,10 +410,10 @@ describe("Kiosk", () => {
     expect(dock).toHaveAttribute("data-menu-visible", "false");
 
     fireEvent.pointerMove(root);
-    fireEvent.click(screen.getByTestId("kiosk-theme-trigger"));
+    fireEvent.click(screen.getByTestId("simple-theme-trigger"));
     act(() => vi.advanceTimersByTime(5000));
     expect(dock).toHaveAttribute("data-menu-visible", "true");
-    fireEvent.keyDown(screen.getByTestId("kiosk-theme-menu"), {
+    fireEvent.keyDown(screen.getByTestId("simple-theme-menu"), {
       key: "Escape",
     });
 
@@ -303,26 +424,26 @@ describe("Kiosk", () => {
 
   it("opens the three-state theme menu and returns focus after selection", async () => {
     const user = userEvent.setup();
-    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
-    fireEvent.pointerMove(screen.getByTestId("kiosk-root"));
-    const trigger = screen.getByTestId("kiosk-theme-trigger");
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
+    fireEvent.pointerMove(screen.getByTestId("simple-root"));
+    const trigger = screen.getByTestId("simple-theme-trigger");
     await user.click(trigger);
-    const menu = screen.getByTestId("kiosk-theme-menu");
+    const menu = screen.getByTestId("simple-theme-menu");
     expect(menu).toBeInTheDocument();
     expect(screen.getAllByRole("menuitemradio")).toHaveLength(3);
     const dark = screen.getByRole("menuitemradio", { name: "ダーク" });
     await user.click(dark);
     expect(window.localStorage.getItem("ambient-lapis-theme")).toBe("dark");
-    expect(screen.queryByTestId("kiosk-theme-menu")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("simple-theme-menu")).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
   });
 
   it("supports theme menu keyboard navigation and two-stage Escape", async () => {
     const user = userEvent.setup();
-    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
-    fireEvent.pointerMove(screen.getByTestId("kiosk-root"));
-    const headerMenu = screen.getByTestId("kiosk-header-menu");
-    const trigger = screen.getByTestId("kiosk-theme-trigger");
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
+    fireEvent.pointerMove(screen.getByTestId("simple-root"));
+    const headerMenu = screen.getByTestId("simple-header-menu");
+    const trigger = screen.getByTestId("simple-theme-trigger");
     await user.click(trigger);
     const system = screen.getByRole("menuitemradio", { name: "自動" });
     expect(system).toHaveFocus();
@@ -333,7 +454,7 @@ describe("Kiosk", () => {
     await user.keyboard("{ArrowUp}");
     expect(screen.getByRole("menuitemradio", { name: "ダーク" })).toHaveFocus();
     await user.keyboard("{Escape}");
-    expect(screen.queryByTestId("kiosk-theme-menu")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("simple-theme-menu")).not.toBeInTheDocument();
     expect(headerMenu).toHaveAttribute("data-menu-visible", "true");
     expect(trigger).toHaveFocus();
     await user.keyboard("{Escape}");
@@ -346,9 +467,9 @@ describe("Kiosk", () => {
   ])(
     "selects a theme with $key and returns focus",
     ({ key, preference, label }) => {
-      render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
-      fireEvent.pointerMove(screen.getByTestId("kiosk-root"));
-      const trigger = screen.getByTestId("kiosk-theme-trigger");
+      render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
+      fireEvent.pointerMove(screen.getByTestId("simple-root"));
+      const trigger = screen.getByTestId("simple-theme-trigger");
       fireEvent.click(trigger);
       const item = screen.getByRole("menuitemradio", { name: label });
       fireEvent.focus(item);
@@ -357,22 +478,22 @@ describe("Kiosk", () => {
         preference,
       );
       expect(trigger).toHaveAttribute("aria-label", `テーマ: ${label}`);
-      expect(screen.queryByTestId("kiosk-theme-menu")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("simple-theme-menu")).not.toBeInTheDocument();
       expect(trigger).toHaveFocus();
     },
   );
 
   it("closes the theme menu on outside pointer interaction", async () => {
     const user = userEvent.setup();
-    render(<Kiosk initial={initial} serverNowIso={FIXTURE_NOW} />);
-    fireEvent.pointerMove(screen.getByTestId("kiosk-root"));
-    const trigger = screen.getByTestId("kiosk-theme-trigger");
+    render(<Simple initial={initial} serverNowIso={FIXTURE_NOW} />);
+    fireEvent.pointerMove(screen.getByTestId("simple-root"));
+    const trigger = screen.getByTestId("simple-theme-trigger");
     await user.click(trigger);
-    expect(screen.getByTestId("kiosk-theme-menu")).toBeInTheDocument();
+    expect(screen.getByTestId("simple-theme-menu")).toBeInTheDocument();
     fireEvent.pointerDown(
       screen.getByRole("region", { name: "現在の室内環境" }),
     );
-    expect(screen.queryByTestId("kiosk-theme-menu")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("simple-theme-menu")).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
   });
 });

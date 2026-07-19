@@ -79,7 +79,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("EnvironmentChart kiosk interactions", () => {
+describe("EnvironmentChart simple interactions", () => {
   it("moves through typed selections with arrow keys and clears with Escape", () => {
     const onSelectionChange = vi.fn();
     const { getByRole } = render(
@@ -91,7 +91,7 @@ describe("EnvironmentChart kiosk interactions", () => {
           toMs: Date.parse("2026-07-18T13:00:00.000Z"),
         }}
         ariaLabel="環境履歴"
-        variant="kiosk"
+        variant="simple"
         onSelectionChange={onSelectionChange}
       />,
     );
@@ -142,7 +142,7 @@ describe("EnvironmentChart kiosk interactions", () => {
           toMs: Date.parse("2026-07-18T13:00:00.000Z"),
         }}
         ariaLabel="環境履歴"
-        variant="kiosk"
+        variant="simple"
         onSelectionChange={onSelectionChange}
       />,
     );

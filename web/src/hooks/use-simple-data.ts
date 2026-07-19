@@ -16,7 +16,7 @@ import { useVisibility } from "./use-visibility";
 const CURRENT_INTERVAL_MS = 60_000;
 const HISTORY_INTERVAL_MS = 300_000;
 
-export interface KioskInitialData {
+export interface SimpleInitialData {
   status: StatusData | null;
   current: CurrentData | null;
   currentFailed: boolean;
@@ -25,7 +25,7 @@ export interface KioskInitialData {
   historyFailed: boolean;
 }
 
-export interface KioskDataState {
+export interface SimpleDataState {
   status: StatusData | null;
   current: CurrentData | null;
   currentError: boolean;
@@ -52,7 +52,7 @@ type Action =
       period: ResolvedPeriod;
     };
 
-function reducer(state: KioskDataState, action: Action): KioskDataState {
+function reducer(state: SimpleDataState, action: Action): SimpleDataState {
   switch (action.type) {
     case "currentSettled":
       return {
@@ -82,17 +82,17 @@ function reducer(state: KioskDataState, action: Action): KioskDataState {
   }
 }
 
-export interface KioskDataApi {
-  state: KioskDataState;
+export interface SimpleDataApi {
+  state: SimpleDataState;
   refreshCurrent: () => Promise<void>;
   loadHistory: (period: ResolvedPeriod) => Promise<void>;
 }
 
-export function useKioskData(
-  initial: KioskInitialData,
+export function useSimpleData(
+  initial: SimpleInitialData,
   activePeriod: ResolvedPeriod,
   onPeriodAdvance?: (period: ResolvedPeriod) => void,
-): KioskDataApi {
+): SimpleDataApi {
   const [state, dispatch] = useReducer(reducer, initial, (data) => ({
     status: data.status,
     current: data.current,

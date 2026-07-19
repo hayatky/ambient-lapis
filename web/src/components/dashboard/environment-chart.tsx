@@ -10,7 +10,7 @@ import {
 import { echarts } from "@/lib/chart/echarts";
 import {
   buildChartOption,
-  computeKioskPanelLayout,
+  computeSimplePanelLayout,
   selectNearestChartData,
   type ChartVariant,
   type EnvironmentChartSelection,
@@ -79,7 +79,7 @@ export function EnvironmentChart({
       crosshairRef.current = null;
     };
     const ensureCrosshair = (): HTMLDivElement | null => {
-      if (inputRef.current.variant !== "kiosk") {
+      if (inputRef.current.variant !== "simple") {
         removeCrosshair();
         return null;
       }
@@ -114,7 +114,7 @@ export function EnvironmentChart({
         line.style.display = "none";
         return;
       }
-      const layout = computeKioskPanelLayout(
+      const layout = computeSimplePanelLayout(
         container.clientHeight,
         container.clientWidth,
       );
@@ -209,7 +209,7 @@ export function EnvironmentChart({
     chart.getZr().on("globalout", handlePointerLeave);
 
     // On touch devices a tap selects a point; a tap outside the chart
-    // releases the selection. Kiosk suppresses ECharts' floating content and
+    // releases the selection. Simple suppresses ECharts' floating content and
     // presents the selected values in its persistent panel instead.
     const releaseTooltip = (event: PointerEvent): void => {
       if (
@@ -264,7 +264,7 @@ export function EnvironmentChart({
       }),
       { notMerge: true },
     );
-    if (variant !== "kiosk") {
+    if (variant !== "simple") {
       crosshairRef.current?.remove();
       crosshairRef.current = null;
     } else if (selectedEpochRef.current !== null) {
@@ -326,7 +326,7 @@ export function EnvironmentChart({
   };
 
   const heightClass =
-    variant === "kiosk"
+    variant === "simple"
       ? "relative h-full min-h-0 w-full"
       : "h-[420px] w-full min-[900px]:h-[500px]";
 

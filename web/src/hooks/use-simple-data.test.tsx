@@ -3,7 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import { resolvePresetPeriod } from "@/lib/period";
 import { FIXTURE_NOW, fixtureScenarios } from "@/test/fixtures";
 
-import { useKioskData, type KioskInitialData } from "./use-kiosk-data";
+import { useSimpleData, type SimpleInitialData } from "./use-simple-data";
 
 const statusMock = vi.fn();
 const currentMock = vi.fn();
@@ -22,7 +22,7 @@ vi.mock("@/lib/api/browser-client", () => ({
 }));
 
 const scenario = fixtureScenarios.normal;
-const initial: KioskInitialData = {
+const initial: SimpleInitialData = {
   status: scenario.status.data,
   current: scenario.current.data,
   currentFailed: false,
@@ -42,12 +42,12 @@ beforeEach(() => {
 
 afterEach(() => vi.useRealTimers());
 
-describe("useKioskData", () => {
+describe("useSimpleData", () => {
   it("refreshes current every minute and history every five minutes without daily summaries", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(FIXTURE_NOW));
     const onAdvance = vi.fn();
-    renderHook(() => useKioskData(initial, period, onAdvance));
+    renderHook(() => useSimpleData(initial, period, onAdvance));
 
     await act(async () => vi.advanceTimersByTimeAsync(60_000));
     expect(statusMock).toHaveBeenCalledTimes(1);
@@ -74,7 +74,7 @@ describe("useKioskData", () => {
       data: { ...scenario.environmentSeries.data, points: [] },
     });
     airconSeriesMock.mockRejectedValue(new Error("unavailable"));
-    const { result } = renderHook(() => useKioskData(initial, period));
+    const { result } = renderHook(() => useSimpleData(initial, period));
     await act(async () => result.current.loadHistory(nextPeriod));
     expect(result.current.state.historyError).toBe(true);
     expect(result.current.state.environmentSeries).toEqual(
@@ -93,7 +93,7 @@ describe("useKioskData", () => {
       data: { ...scenario.environmentSeries.data, points: [] },
     };
     environmentSeriesMock.mockResolvedValue(nextEnvironment);
-    const { result } = renderHook(() => useKioskData(initial, period));
+    const { result } = renderHook(() => useSimpleData(initial, period));
     await act(async () => result.current.loadHistory(nextPeriod));
     expect(result.current.state.environmentSeries).toEqual(
       nextEnvironment.data,
@@ -111,7 +111,7 @@ describe("useKioskData", () => {
     vi.spyOn(document, "visibilityState", "get").mockImplementation(
       () => visibilityState,
     );
-    renderHook(() => useKioskData(initial, period));
+    renderHook(() => useSimpleData(initial, period));
     await act(async () => {
       visibilityState = "hidden";
       document.dispatchEvent(new Event("visibilitychange"));

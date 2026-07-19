@@ -123,10 +123,10 @@ export function HeaderMenu({
   return (
     <div
       ref={menuRef}
-      data-testid="kiosk-header-menu"
+      data-testid="simple-header-menu"
       data-menu-visible={visible ? "true" : "false"}
       aria-hidden={!visible}
-      className={`kiosk-header-menu ml-auto flex items-center justify-end ${visible ? "kiosk-header-menu-visible" : ""}`}
+      className={`simple-header-menu ml-auto flex items-center justify-end ${visible ? "simple-header-menu-visible" : ""}`}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onFocusCapture={onFocusCapture}
@@ -137,7 +137,7 @@ export function HeaderMenu({
           <button
             key={option}
             type="button"
-            className={`kiosk-header-control ${preset === option ? "kiosk-header-control-active" : ""}`}
+            className={`simple-header-control ${preset === option ? "simple-header-control-active" : ""}`}
             aria-label={PERIOD_LABELS[option]}
             aria-pressed={preset === option}
             onClick={() => onPresetChange(option)}
@@ -150,11 +150,11 @@ export function HeaderMenu({
         <button
           ref={themeTriggerRef}
           type="button"
-          className="kiosk-header-icon-control"
+          className="simple-header-icon-control"
           aria-label={`テーマ: ${THEME_OPTIONS.find((option) => option.value === themePreference)?.label ?? "自動"}`}
           aria-expanded={themeOpen}
           aria-haspopup="menu"
-          data-testid="kiosk-theme-trigger"
+          data-testid="simple-theme-trigger"
           onClick={toggleThemeMenu}
           onKeyDown={(event) => {
             if (event.key === "Escape" && themeOpen) {
@@ -171,8 +171,8 @@ export function HeaderMenu({
             ref={themeMenuRef}
             role="menu"
             aria-label="テーマ"
-            data-testid="kiosk-theme-menu"
-            className="kiosk-theme-menu"
+            data-testid="simple-theme-menu"
+            className="simple-theme-menu"
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 event.preventDefault();
@@ -217,7 +217,7 @@ export function HeaderMenu({
                     closeThemeMenu();
                   }
                 }}
-                className="kiosk-theme-item"
+                className="simple-theme-item"
               >
                 {option.label}
               </button>
@@ -228,7 +228,7 @@ export function HeaderMenu({
       {fullscreenSupported ? (
         <button
           type="button"
-          className="kiosk-header-icon-control"
+          className="simple-header-icon-control"
           aria-label={fullscreen ? "全画面を終了" : "全画面"}
           onClick={onFullscreen}
         >
@@ -237,7 +237,7 @@ export function HeaderMenu({
       ) : null}
       <Link
         href="/"
-        className="kiosk-header-icon-control no-underline"
+        className="simple-header-icon-control no-underline"
         aria-label="通常表示"
       >
         <HomeIcon />
@@ -252,7 +252,7 @@ function ThemeIcon({
   preference: ThemePreference;
 }): ReactElement {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="kiosk-icon">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="simple-icon">
       {preference === "dark" ? (
         <path d="M20.3 15.3A8.5 8.5 0 0 1 8.7 3.7 8.5 8.5 0 1 0 20.3 15.3Z" />
       ) : preference === "system" ? (
@@ -272,7 +272,7 @@ function ThemeIcon({
 
 function FullscreenIcon({ active }: { active: boolean }): ReactElement {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="kiosk-icon">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="simple-icon">
       {active ? (
         <path d="M8 3H3v5M3 3l6 6M16 3h5v5M21 3l-6 6M8 21H3v-5M3 21l6-6M16 21h5v-5M21 21l-6-6" />
       ) : (
@@ -284,7 +284,7 @@ function FullscreenIcon({ active }: { active: boolean }): ReactElement {
 
 function HomeIcon(): ReactElement {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="kiosk-icon">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="simple-icon">
       <path d="m3 11 9-8 9 8M5 10v10h14V10M9 20v-6h6v6" />
     </svg>
   );

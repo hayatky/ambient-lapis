@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 
-import { Kiosk } from "@/components/kiosk/kiosk";
-import type { KioskInitialData } from "@/hooks/use-kiosk-data";
+import { Simple } from "@/components/simple/simple";
+import type { SimpleInitialData } from "@/hooks/use-simple-data";
 import { serverApi } from "@/lib/api/server-client";
 import { resolvePresetPeriod } from "@/lib/period";
 
@@ -11,7 +11,7 @@ function fulfilled<T>(result: PromiseSettledResult<T>): T | null {
   return result.status === "fulfilled" ? result.value : null;
 }
 
-export default async function KioskPage(): Promise<ReactElement> {
+export default async function SimplePage(): Promise<ReactElement> {
   const now = new Date();
   const period = resolvePresetPeriod("24h", now);
   const query = { from: period.series.fromIso, to: period.series.toIso };
@@ -22,7 +22,7 @@ export default async function KioskPage(): Promise<ReactElement> {
       serverApi.environmentSeries({ ...query, resolution: "auto" }),
       serverApi.airconSeries(query),
     ]);
-  const initial: KioskInitialData = {
+  const initial: SimpleInitialData = {
     status: fulfilled(status)?.data ?? null,
     current: fulfilled(current)?.data ?? null,
     currentFailed:
@@ -33,5 +33,5 @@ export default async function KioskPage(): Promise<ReactElement> {
       environmentSeries.status === "rejected" ||
       airconSeries.status === "rejected",
   };
-  return <Kiosk initial={initial} serverNowIso={now.toISOString()} />;
+  return <Simple initial={initial} serverNowIso={now.toISOString()} />;
 }

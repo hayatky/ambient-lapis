@@ -40,32 +40,32 @@ async function expectNoDocumentOverflow(page: Page): Promise<void> {
     .toEqual({ horizontal: true, vertical: true });
 }
 
-function kioskDock(page: Page) {
-  return page.getByTestId("kiosk-header-menu");
+function simpleDock(page: Page) {
+  return page.getByTestId("simple-header-menu");
 }
 
-async function expectKioskDockHidden(page: Page): Promise<void> {
-  await expect(kioskDock(page)).toHaveAttribute("data-menu-visible", "false");
+async function expectSimpleDockHidden(page: Page): Promise<void> {
+  await expect(simpleDock(page)).toHaveAttribute("data-menu-visible", "false");
 }
 
-async function revealKioskDock(page: Page): Promise<void> {
-  const root = page.getByTestId("kiosk-root");
+async function revealSimpleDock(page: Page): Promise<void> {
+  const root = page.getByTestId("simple-root");
   await expect(root).toBeVisible();
   await expect(page.locator("canvas").first()).toBeVisible({
     timeout: 15_000,
   });
   await root.hover({ position: { x: 8, y: 8 } });
-  await expect(kioskDock(page)).toHaveAttribute("data-menu-visible", "true", {
+  await expect(simpleDock(page)).toHaveAttribute("data-menu-visible", "true", {
     timeout: 1_000,
   });
 }
 
-async function expectKioskDockGeometry(
+async function expectSimpleDockGeometry(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],
 ): Promise<void> {
-  const dock = kioskDock(page);
-  const header = page.getByTestId("kiosk-header");
+  const dock = simpleDock(page);
+  const header = page.getByTestId("simple-header");
   const current = page.getByRole("region", { name: "現在の室内環境" });
   const aircon = page.getByRole("region", {
     name: "エアコン - Nature Remo認識状態",
@@ -137,8 +137,8 @@ async function expectKioskDockGeometry(
   await expect(dock.getByText("収集正常", { exact: false })).toHaveCount(0);
 }
 
-async function expectKioskSurface(page: Page): Promise<void> {
-  await expect(page.locator("main.kiosk")).toBeVisible();
+async function expectSimpleSurface(page: Page): Promise<void> {
+  await expect(page.locator("main.simple")).toBeVisible();
   await expect(
     page.getByRole("region", { name: "現在の室内環境" }),
   ).toBeVisible();
@@ -152,14 +152,14 @@ async function expectKioskSurface(page: Page): Promise<void> {
   });
   await expect(chart).toBeVisible();
   await expect(chart.locator("canvas")).toBeVisible({ timeout: 15_000 });
-  await expectKioskDockHidden(page);
-  await revealKioskDock(page);
+  await expectSimpleDockHidden(page);
+  await revealSimpleDock(page);
   await expect(page.getByRole("button", { name: "24時間" })).toHaveText("24h");
   await expect(page.getByRole("button", { name: "7日" })).toHaveText("7d");
   await expect(page.getByRole("button", { name: "30日" })).toHaveText("30d");
-  await expect(page.getByTestId("kiosk-theme-trigger")).toBeVisible();
+  await expect(page.getByTestId("simple-theme-trigger")).toBeVisible();
   await expect(
-    page.getByTestId("kiosk-theme-trigger").locator("svg"),
+    page.getByTestId("simple-theme-trigger").locator("svg"),
   ).toHaveCount(1);
   await expect(page.getByRole("button", { name: "全画面" })).toBeVisible();
   await expect(
@@ -188,7 +188,7 @@ function viewportWidth(page: Page): number {
 }
 
 for (const viewport of VIEWPORTS) {
-  test(`fits the complete kiosk surface in the ${viewport.name} viewport`, async ({
+  test(`fits the complete simple surface in the ${viewport.name} viewport`, async ({
     page,
     request,
   }) => {
@@ -197,35 +197,35 @@ for (const viewport of VIEWPORTS) {
     await enableMockFullscreen(page);
     const errors = collectPageErrors(page);
 
-    await page.goto("/kiosk");
-    await expectKioskSurface(page);
-    await expectKioskDockGeometry(page, viewport);
+    await page.goto("/simple");
+    await expectSimpleSurface(page);
+    await expectSimpleDockGeometry(page, viewport);
     await expectNoDocumentOverflow(page);
 
-    const kioskBox = await page.locator("main.kiosk").boundingBox();
-    expect(kioskBox).not.toBeNull();
-    if (kioskBox) {
-      expect(kioskBox.width).toBeLessThanOrEqual(viewport.width);
-      expect(kioskBox.height).toBeLessThanOrEqual(viewport.height);
+    const simpleBox = await page.locator("main.simple").boundingBox();
+    expect(simpleBox).not.toBeNull();
+    if (simpleBox) {
+      expect(simpleBox.width).toBeLessThanOrEqual(viewport.width);
+      expect(simpleBox.height).toBeLessThanOrEqual(viewport.height);
     }
     expect(errors).toEqual([]);
   });
 }
 
-test.describe("kiosk navigation and controls", () => {
+test.describe("simple navigation and controls", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test.beforeEach(async ({ request }) => {
     await setScenario(request, "normal");
   });
 
-  test("normal and kiosk views link to each other", async ({ page }) => {
+  test("normal and simple views link to each other", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("link", { name: "キオスク表示" }).click();
-    await expect(page).toHaveURL(/\/kiosk$/);
-    await expect(page.locator("main.kiosk")).toBeVisible();
+    await page.getByRole("link", { name: "シンプル表示" }).click();
+    await expect(page).toHaveURL(/\/simple$/);
+    await expect(page.locator("main.simple")).toBeVisible();
 
-    await revealKioskDock(page);
+    await revealSimpleDock(page);
     await page.getByRole("link", { name: "通常表示" }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(
@@ -234,8 +234,8 @@ test.describe("kiosk navigation and controls", () => {
   });
 
   test("starts at 24 hours and switches to 7 and 30 days", async ({ page }) => {
-    await page.goto("/kiosk");
-    await revealKioskDock(page);
+    await page.goto("/simple");
+    await revealSimpleDock(page);
     await expect(page.getByRole("button", { name: "24時間" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -260,20 +260,20 @@ test.describe("kiosk navigation and controls", () => {
   });
 
   test("shares the persisted theme preference", async ({ page }) => {
-    await page.goto("/kiosk");
-    await revealKioskDock(page);
-    const themeTrigger = page.getByTestId("kiosk-theme-trigger");
+    await page.goto("/simple");
+    await revealSimpleDock(page);
+    const themeTrigger = page.getByTestId("simple-theme-trigger");
     await themeTrigger.click();
-    const themeMenu = page.getByTestId("kiosk-theme-menu");
+    const themeMenu = page.getByTestId("simple-theme-menu");
     await expect(themeMenu).toBeVisible();
     await themeMenu.getByRole("menuitemradio", { name: "ダーク" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await revealKioskDock(page);
-    await page.getByTestId("kiosk-theme-trigger").click();
+    await revealSimpleDock(page);
+    await page.getByTestId("simple-theme-trigger").click();
     await page
-      .getByTestId("kiosk-theme-menu")
+      .getByTestId("simple-theme-menu")
       .getByRole("menuitemradio", { name: "自動" })
       .click();
   });
@@ -281,13 +281,13 @@ test.describe("kiosk navigation and controls", () => {
   test("theme menu has three choices and closes with keyboard Escape", async ({
     page,
   }) => {
-    await page.goto("/kiosk");
-    await revealKioskDock(page);
-    const trigger = page.getByTestId("kiosk-theme-trigger");
+    await page.goto("/simple");
+    await revealSimpleDock(page);
+    const trigger = page.getByTestId("simple-theme-trigger");
     await expect(trigger).toHaveAttribute("aria-haspopup", "menu");
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
     await trigger.click();
-    const menu = page.getByTestId("kiosk-theme-menu");
+    const menu = page.getByTestId("simple-theme-menu");
     await expect(menu).toBeVisible();
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
     await expect(menu.getByRole("menuitemradio")).toHaveCount(3);
@@ -302,8 +302,8 @@ test.describe("kiosk navigation and controls", () => {
     page,
   }) => {
     await enableMockFullscreen(page);
-    await page.goto("/kiosk");
-    await revealKioskDock(page);
+    await page.goto("/simple");
+    await revealSimpleDock(page);
     await expect
       .poll(() =>
         page.evaluate(
@@ -328,34 +328,34 @@ test.describe("kiosk navigation and controls", () => {
   test("hides fullscreen when the browser does not support it", async ({
     page,
   }) => {
-    await page.goto("/kiosk");
+    await page.goto("/simple");
     await expect(page.getByRole("button", { name: "全画面" })).toHaveCount(0);
   });
 
   test("reveals the dock only during interaction and closes it with Escape", async ({
     page,
   }) => {
-    await page.goto("/kiosk");
-    await expectKioskDockHidden(page);
+    await page.goto("/simple");
+    await expectSimpleDockHidden(page);
 
-    await revealKioskDock(page);
+    await revealSimpleDock(page);
     await expect(page.getByRole("button", { name: "24時間" })).toHaveText(
       "24h",
     );
 
     await page.keyboard.press("Escape");
-    await expectKioskDockHidden(page);
+    await expectSimpleDockHidden(page);
   });
 });
 
-test.describe("kiosk chart details", () => {
+test.describe("simple chart details", () => {
   test("fine pointer hover and keyboard arrows show the selected time", async ({
     page,
     request,
   }) => {
     await setScenario(request, "normal");
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/kiosk");
+    await page.goto("/simple");
     const chart = page.getByRole("img", {
       name: /温度、湿度、Nature Remo認識エアコン設定温度/,
     });
@@ -370,18 +370,65 @@ test.describe("kiosk chart details", () => {
       );
     }
     await expect(page.locator(".echarts-tooltip")).toBeHidden();
-    await expect(
-      page.getByRole("region", { name: "選択時刻の詳細" }),
-    ).toBeVisible();
+    const detail = page.getByRole("region", { name: "選択時刻の詳細" });
+    await expect(detail).toBeVisible();
+
+    // Layout invariant tied to computeSimplePanelLayout in
+    // web/src/lib/chart/option.ts: for viewport widths >= 600 the chart
+    // reserves a 128px bottom band, so the aircon ribbon's bottom edge sits
+    // at viewportHeight - 128 and the shared time-axis labels occupy the top
+    // ~25px of that band (10px axisLabel margin + ~15px of 11px text). The
+    // selection detail panel must start at or below that label band and stay
+    // fully inside the viewport horizontally. If the reserved band or the
+    // label metrics change in computeSimplePanelLayout, update these
+    // constants as well.
+    const detailBox = await detail.boundingBox();
+    expect(detailBox).not.toBeNull();
+    if (detailBox) {
+      expect(detailBox.y).toBeGreaterThanOrEqual(900 - 128 + 25);
+      expect(detailBox.x).toBeGreaterThanOrEqual(0);
+      expect(detailBox.x + detailBox.width).toBeLessThanOrEqual(1440);
+    }
 
     await chart.focus();
     await page.keyboard.press("ArrowRight");
-    const detail = page.getByRole("region", { name: "選択時刻の詳細" });
     await expect(detail).toContainText("温度");
     await expect(detail).toContainText("湿度");
     await expect(detail).toContainText("エアコン認識");
     await page.keyboard.press("Escape");
     await expect(detail).toHaveCount(0);
+  });
+
+  test("tablet keyboard selection keeps the detail panel inside the viewport", async ({
+    page,
+    request,
+  }) => {
+    await setScenario(request, "normal");
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.goto("/simple");
+    const chart = page.getByRole("img", {
+      name: /温度、湿度、Nature Remo認識エアコン設定温度/,
+    });
+    await expect(chart.locator("canvas")).toBeVisible({ timeout: 15_000 });
+
+    await chart.focus();
+    await page.keyboard.press("ArrowRight");
+    const detail = page.getByRole("region", { name: "選択時刻の詳細" });
+    await expect(detail).toBeVisible();
+
+    // Same reserved-band invariant as the desktop test above; see
+    // computeSimplePanelLayout in web/src/lib/chart/option.ts (128px bottom
+    // band for viewport widths >= 600, with the ~25px time-axis label strip
+    // at its top). At 768px the optional detail items are hidden, so the
+    // panel renders only the core set and must not overflow horizontally.
+    const detailBox = await detail.boundingBox();
+    expect(detailBox).not.toBeNull();
+    if (detailBox) {
+      expect(detailBox.y).toBeGreaterThanOrEqual(1024 - 128 + 25);
+      expect(detailBox.x).toBeGreaterThanOrEqual(0);
+      expect(detailBox.x + detailBox.width).toBeLessThanOrEqual(768);
+    }
+    await expectNoDocumentOverflow(page);
   });
 
   test.describe("coarse pointer", () => {
@@ -392,14 +439,14 @@ test.describe("kiosk chart details", () => {
       request,
     }) => {
       await setScenario(request, "normal");
-      await page.goto("/kiosk");
-      await expectKioskDockHidden(page);
+      await page.goto("/simple");
+      await expectSimpleDockHidden(page);
       const chart = page.getByRole("img", {
         name: /温度、湿度、Nature Remo認識エアコン設定温度/,
       });
       await expect(chart.locator("canvas")).toBeVisible({ timeout: 15_000 });
       await chart.tap({ position: { x: 200, y: 420 } });
-      await expect(kioskDock(page)).toHaveAttribute(
+      await expect(simpleDock(page)).toHaveAttribute(
         "data-menu-visible",
         "true",
       );
@@ -412,7 +459,7 @@ test.describe("kiosk chart details", () => {
   });
 });
 
-test.describe("kiosk states", () => {
+test.describe("simple states", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   const states = [
@@ -426,9 +473,9 @@ test.describe("kiosk states", () => {
       request,
     }) => {
       await setScenario(request, scenario);
-      await page.goto("/kiosk");
+      await page.goto("/simple");
       await expect(page.getByText(message, { exact: false })).toBeVisible();
-      await expect(page.locator("main.kiosk")).toHaveClass(/kiosk-danger/);
+      await expect(page.locator("main.simple")).toHaveClass(/simple-danger/);
       await expect(page.locator("canvas").first()).toBeVisible({
         timeout: 15_000,
       });
@@ -437,7 +484,7 @@ test.describe("kiosk states", () => {
 
   test("unknown aircon state is not guessed", async ({ page, request }) => {
     await setScenario(request, "airconUnknown");
-    await page.goto("/kiosk");
+    await page.goto("/simple");
     const aircon = page.getByRole("region", {
       name: "エアコン - Nature Remo認識状態",
     });
@@ -451,7 +498,7 @@ test.describe("kiosk states", () => {
     request,
   }) => {
     await setScenario(request, "noData");
-    await page.goto("/kiosk");
+    await page.goto("/simple");
     const current = page.getByRole("region", { name: "現在の室内環境" });
     await expect(current).toContainText("--");
     await expect(
@@ -466,7 +513,7 @@ test.describe("kiosk states", () => {
     request,
   }) => {
     await setScenario(request, "historyError");
-    await page.goto("/kiosk");
+    await page.goto("/simple");
     const historyAlert = page
       .getByRole("alert")
       .filter({ hasText: "履歴更新失敗" });
@@ -491,7 +538,7 @@ test.describe("kiosk states", () => {
     request,
   }) => {
     await setScenario(request, "normal");
-    await page.goto("/kiosk");
+    await page.goto("/simple");
     await expect(page.getByText("NATURE REMO認識")).toBeVisible();
     await expect(
       page.getByText("エアコン本体との双方向確認ではありません"),

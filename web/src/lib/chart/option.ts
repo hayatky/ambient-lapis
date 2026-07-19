@@ -29,12 +29,12 @@ export interface ChartBuildInput {
   // Rendered container height; the grid layout is computed from it.
   heightPx: number;
   // Dashboard remains the default so existing callers and visual tests keep
-  // their current layout. Kiosk uses viewport-aware safe areas.
+  // their current layout. Simple uses viewport-aware safe areas.
   variant?: ChartVariant;
   widthPx?: number;
 }
 
-export type ChartVariant = "dashboard" | "kiosk";
+export type ChartVariant = "dashboard" | "simple";
 
 export interface EnvironmentChartSelection {
   epochMs: number;
@@ -157,14 +157,24 @@ export function computePanelLayout(heightPx: number): PanelLayout {
   };
 }
 
-export function computeKioskPanelLayout(
+export function computeSimplePanelLayout(
   heightPx: number,
   widthPx: number,
 ): PanelLayout {
   // The current values and Remo-recognized AC state share the top overlay.
   // Its measured maximum lower edge is 234px on the supported viewports.
   const top = 252;
-  const bottom = widthPx < 600 ? 160 : 96;
+  // Reserved band below the ribbon grid's bottom edge: `bottom` is exactly
+  // the distance from the viewport bottom to that edge. Top to bottom it
+  // must fit the shared time-axis label band (10px axisLabel margin + ~15px
+  // of 11px text, drawn just below the ribbon), the selection detail panel
+  // (~62px: 44px close button + 16px vertical padding + 2px border) that
+  // lives in simple.tsx's bottom overlay container
+  // (data-testid="simple-bottom-overlays"), the container's bottom padding
+  // (18px at sm+, 10px below that), and clearance for
+  // env(safe-area-inset-bottom). Invariant: the selection panel must never
+  // cover the time-axis labels.
+  const bottom = widthPx < 600 ? 160 : 128;
   const gap1 = widthPx < 600 ? 26 : 38;
   const gap2 = 12;
   const ribbonHeight = widthPx < 600 ? 12 : 16;
@@ -267,11 +277,11 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
   const widthPx = input.widthPx ?? 1200;
   const points = series.points;
   const layout =
-    variant === "kiosk"
-      ? computeKioskPanelLayout(heightPx, widthPx)
+    variant === "simple"
+      ? computeSimplePanelLayout(heightPx, widthPx)
       : computePanelLayout(heightPx);
   const bounds: PlotBounds =
-    variant === "kiosk"
+    variant === "simple"
       ? { left: widthPx < 600 ? 28 : 52, right: widthPx < 600 ? 18 : 36 }
       : { left: GRID_LEFT, right: GRID_RIGHT };
   const span = rangeToMs - rangeFromMs;
@@ -313,8 +323,8 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
   const targetTemperatureColor = withAlpha(tokens.inkMuted, 0.72);
   const pointerLineStyle = {
     color: tokens.inkMuted,
-    opacity: variant === "kiosk" ? 0.82 : 0.45,
-    width: variant === "kiosk" ? 1.5 : 1,
+    opacity: variant === "simple" ? 0.82 : 0.45,
+    width: variant === "simple" ? 1.5 : 1,
   };
 
   const temperatureSeries: SeriesOption = {
@@ -328,11 +338,11 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     connectNulls: false,
     lineStyle: {
       color: tokens.temperature,
-      width: variant === "kiosk" ? 2.5 : 2,
+      width: variant === "simple" ? 2.5 : 2,
     },
     itemStyle: { color: tokens.temperature },
     areaStyle: {
-      color: withAlpha(tokens.temperature, variant === "kiosk" ? 0.14 : 0.1),
+      color: withAlpha(tokens.temperature, variant === "simple" ? 0.14 : 0.1),
     },
     emphasis: { disabled: true },
     data: lineData(points, "temperature"),
@@ -350,11 +360,11 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     connectNulls: false,
     lineStyle: {
       color: tokens.humidity,
-      width: variant === "kiosk" ? 2.25 : 2,
+      width: variant === "simple" ? 2.25 : 2,
     },
     itemStyle: { color: tokens.humidity },
     areaStyle: {
-      color: withAlpha(tokens.humidity, variant === "kiosk" ? 0.12 : 0.1),
+      color: withAlpha(tokens.humidity, variant === "simple" ? 0.12 : 0.1),
     },
     emphasis: { disabled: true },
     data: lineData(points, "humidity"),
@@ -442,7 +452,7 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
       lineStyle: pointerLineStyle,
     },
     title:
-      variant === "kiosk"
+      variant === "simple"
         ? []
         : [
             {
@@ -562,13 +572,13 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     tooltip: {
       trigger: "axis",
       triggerOn: pointerType === "fine" ? "mousemove" : "click",
-      // Kiosk keeps the linked axis pointer and selection events, but the
+      // Simple keeps the linked axis pointer and selection events, but the
       // selected value is rendered by the persistent panel below the chart.
       // Suppressing ECharts' floating content prevents a transient tooltip
       // from obscuring the calm, full-screen composition while moving a
       // desktop pointer over the graph. Dashboard retains the standard
       // hover/tap tooltip.
-      showContent: variant !== "kiosk",
+      showContent: variant !== "simple",
       axisPointer: { type: "line", lineStyle: pointerLineStyle },
       confine: true,
       backgroundColor: tokens.raised,

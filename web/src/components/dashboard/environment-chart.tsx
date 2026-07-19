@@ -208,8 +208,9 @@ export function EnvironmentChart({
     };
     chart.getZr().on("globalout", handlePointerLeave);
 
-    // On touch devices the tooltip is pinned by tap; a tap outside the
-    // chart releases it.
+    // On touch devices a tap selects a point; a tap outside the chart
+    // releases the selection. Kiosk suppresses ECharts' floating content and
+    // presents the selected values in its persistent panel instead.
     const releaseTooltip = (event: PointerEvent): void => {
       if (
         pointerCoarse.matches &&

@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type ReactElement } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+} from "react";
 
 import {
   EnvironmentChart,
@@ -59,6 +65,63 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
   );
   const [fullscreenSupported, setFullscreenSupported] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [dockVisible, setDockVisible] = useState(false);
+  const dockRef = useRef<HTMLDivElement>(null);
+  const dockHoveredRef = useRef(false);
+  const dockFocusedRef = useRef(false);
+  const dockHideTimerRef = useRef<number | null>(null);
+
+  const clearDockHideTimer = useCallback((): void => {
+    if (dockHideTimerRef.current !== null) {
+      window.clearTimeout(dockHideTimerRef.current);
+      dockHideTimerRef.current = null;
+    }
+  }, []);
+
+  const hideDock = useCallback((): void => {
+    clearDockHideTimer();
+    dockHoveredRef.current = false;
+    dockFocusedRef.current = false;
+    const activeElement = document.activeElement;
+    if (
+      activeElement instanceof HTMLElement &&
+      dockRef.current?.contains(activeElement)
+    ) {
+      activeElement.blur();
+    }
+    setDockVisible(false);
+  }, [clearDockHideTimer]);
+
+  const scheduleDockHide = useCallback((): void => {
+    clearDockHideTimer();
+    if (dockHoveredRef.current || dockFocusedRef.current) return;
+    dockHideTimerRef.current = window.setTimeout(() => {
+      dockHideTimerRef.current = null;
+      if (!dockHoveredRef.current && !dockFocusedRef.current) {
+        setDockVisible(false);
+      }
+    }, 3000);
+  }, [clearDockHideTimer]);
+
+  const revealDock = useCallback((): void => {
+    setDockVisible(true);
+    scheduleDockHide();
+  }, [scheduleDockHide]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        hideDock();
+        return;
+      }
+      revealDock();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      clearDockHideTimer();
+    };
+  }, [clearDockHideTimer, hideDock, revealDock]);
 
   useEffect(() => {
     const initial = window.setTimeout(() => {
@@ -147,9 +210,12 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
 
   return (
     <main
+      data-testid="kiosk-root"
       className={`kiosk fixed inset-0 isolate h-[100dvh] overflow-hidden bg-[var(--canvas)] text-[var(--ink)] ${
         hasDanger ? "kiosk-danger" : ""
       }`}
+      onPointerMove={revealDock}
+      onTouchStart={revealDock}
     >
       <div className="absolute inset-0 z-0">
         {hasChartPoints && environmentSeries ? (
@@ -249,12 +315,52 @@ export function Kiosk({ initial, serverNowIso }: KioskProps): ReactElement {
             onClose={() => setSelection(null)}
           />
         ) : null}
-        <div className="kiosk-surface mt-2 flex w-full max-w-[880px] flex-wrap items-center justify-center gap-x-2 px-2 py-1.5 sm:flex-nowrap sm:justify-start sm:gap-4 sm:px-3">
+        {state.currentError ||
+        warnings.some((warning) => warning.severity === "danger") ? (
+          <PersistentNotice
+            warning={warnings.find((warning) => warning.severity === "danger")}
+            currentError={state.currentError}
+            onRetry={refreshCurrent}
+          />
+        ) : null}
+        <div
+          ref={dockRef}
+          data-testid="kiosk-control-dock"
+          data-menu-visible={dockVisible ? "true" : "false"}
+          aria-hidden={!dockVisible}
+          className={`kiosk-dock kiosk-surface mt-2 flex w-full max-w-[880px] flex-wrap items-center justify-center gap-x-2 px-2 py-1.5 sm:flex-nowrap sm:justify-start sm:gap-4 sm:px-3 ${dockVisible ? "kiosk-dock-visible" : ""}`}
+          onMouseEnter={() => {
+            dockHoveredRef.current = true;
+            clearDockHideTimer();
+            setDockVisible(true);
+          }}
+          onMouseLeave={() => {
+            dockHoveredRef.current = false;
+            scheduleDockHide();
+          }}
+          onFocusCapture={() => {
+            dockFocusedRef.current = true;
+            clearDockHideTimer();
+            setDockVisible(true);
+          }}
+          onBlurCapture={(event) => {
+            const relatedTarget = event.relatedTarget;
+            if (
+              !(relatedTarget instanceof Node) ||
+              !event.currentTarget.contains(relatedTarget)
+            ) {
+              dockFocusedRef.current = false;
+              scheduleDockHide();
+            }
+          }}
+        >
           <StatusSummary
             collectionState={collectionState}
-            warnings={warnings}
+            warnings={warnings.filter(
+              (warning) => warning.severity !== "danger",
+            )}
             lastFullSuccessAt={lastFullSuccessAt}
-            currentError={state.currentError}
+            currentError={false}
             onRetry={refreshCurrent}
           />
           <div className="flex items-center sm:ml-auto">
@@ -324,6 +430,40 @@ function Metric({
           {unit}
         </span>
       </p>
+    </div>
+  );
+}
+
+function PersistentNotice({
+  warning,
+  currentError,
+  onRetry,
+}: {
+  warning?: DashboardWarning;
+  currentError: boolean;
+  onRetry: () => Promise<void>;
+}): ReactElement {
+  return (
+    <div
+      role="alert"
+      className="kiosk-surface flex max-w-[min(880px,calc(100vw-1.5rem))] items-center gap-3 px-3 text-xs text-[var(--warning)]"
+    >
+      {currentError ? <span>最新情報を取得できません</span> : null}
+      {warning ? <span>{warning.title}</span> : null}
+      {warning?.detail ? (
+        <span className="hidden text-[var(--ink-secondary)] sm:inline">
+          {warning.detail}
+        </span>
+      ) : null}
+      {currentError ? (
+        <button
+          type="button"
+          className="kiosk-text-button"
+          onClick={() => void onRetry()}
+        >
+          再試行
+        </button>
+      ) : null}
     </div>
   );
 }

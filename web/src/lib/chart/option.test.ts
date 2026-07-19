@@ -161,12 +161,37 @@ describe("buildChartOption", () => {
   it("pins tooltips by tap on coarse pointers and hover on fine", () => {
     const fine = build({ pointerType: "fine" }).tooltip as {
       triggerOn: string;
+      showContent: boolean;
     };
     expect(fine.triggerOn).toBe("mousemove");
+    expect(fine.showContent).toBe(true);
     const coarse = build({ pointerType: "coarse" }).tooltip as {
       triggerOn: string;
+      showContent: boolean;
     };
     expect(coarse.triggerOn).toBe("click");
+    expect(coarse.showContent).toBe(true);
+  });
+
+  it("suppresses floating tooltip content only in kiosk mode", () => {
+    const dashboard = build({ variant: "dashboard" }).tooltip as {
+      showContent: boolean;
+      axisPointer: { type: string };
+    };
+    const kiosk = build({ variant: "kiosk" }).tooltip as {
+      showContent: boolean;
+      axisPointer: { type: string };
+    };
+    const kioskCoarse = build({
+      variant: "kiosk",
+      pointerType: "coarse",
+    }).tooltip as { showContent: boolean };
+    expect(dashboard.showContent).toBe(true);
+    expect(kiosk.showContent).toBe(false);
+    expect(kioskCoarse.showContent).toBe(false);
+    // The axis pointer remains active so the chart can continue to drive the
+    // kiosk crosshair and selected-value panel.
+    expect(kiosk.axisPointer.type).toBe("line");
   });
 
   it("formats a Japanese tooltip with measurement details", () => {

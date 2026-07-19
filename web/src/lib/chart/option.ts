@@ -562,6 +562,13 @@ export function buildChartOption(input: ChartBuildInput): EChartsOption {
     tooltip: {
       trigger: "axis",
       triggerOn: pointerType === "fine" ? "mousemove" : "click",
+      // Kiosk keeps the linked axis pointer and selection events, but the
+      // selected value is rendered by the persistent panel below the chart.
+      // Suppressing ECharts' floating content prevents a transient tooltip
+      // from obscuring the calm, full-screen composition while moving a
+      // desktop pointer over the graph. Dashboard retains the standard
+      // hover/tap tooltip.
+      showContent: variant !== "kiosk",
       axisPointer: { type: "line", lineStyle: pointerLineStyle },
       confine: true,
       backgroundColor: tokens.raised,

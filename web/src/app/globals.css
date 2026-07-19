@@ -107,6 +107,38 @@ a {
   background: var(--raised);
 }
 
+.kiosk-dock {
+  visibility: hidden;
+  pointer-events: none;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin-top: 0;
+  border-width: 0;
+  padding-block: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 220ms ease,
+    max-height 220ms ease,
+    transform 220ms ease,
+    visibility 220ms ease,
+    margin-top 220ms ease,
+    border-width 220ms ease,
+    padding 220ms ease;
+}
+
+.kiosk-dock-visible {
+  visibility: visible;
+  pointer-events: auto;
+  max-height: 12rem;
+  overflow: visible;
+  opacity: 1;
+  margin-top: 0.5rem;
+  border-width: 1px;
+  padding-block: 0.375rem;
+  transform: translateY(0);
+}
+
 .kiosk-control,
 .kiosk-text-button {
   min-height: 44px;
@@ -218,5 +250,9 @@ a {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .kiosk-dock {
+    transition: none;
   }
 }

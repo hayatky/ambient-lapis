@@ -40,6 +40,26 @@ async function expectNoDocumentOverflow(page: Page): Promise<void> {
     .toEqual({ horizontal: true, vertical: true });
 }
 
+function kioskDock(page: Page) {
+  return page.getByTestId("kiosk-control-dock");
+}
+
+async function expectKioskDockHidden(page: Page): Promise<void> {
+  await expect(kioskDock(page)).toHaveAttribute("data-menu-visible", "false");
+}
+
+async function revealKioskDock(page: Page): Promise<void> {
+  const root = page.getByTestId("kiosk-root");
+  await expect(root).toBeVisible();
+  await expect(page.locator("canvas").first()).toBeVisible({
+    timeout: 15_000,
+  });
+  await root.hover({ position: { x: 8, y: 8 } });
+  await expect(kioskDock(page)).toHaveAttribute("data-menu-visible", "true", {
+    timeout: 1_000,
+  });
+}
+
 async function expectKioskSurface(page: Page): Promise<void> {
   await expect(page.locator("main.kiosk")).toBeVisible();
   await expect(
@@ -55,7 +75,8 @@ async function expectKioskSurface(page: Page): Promise<void> {
   });
   await expect(chart).toBeVisible();
   await expect(chart.locator("canvas")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("収集正常", { exact: false })).toBeVisible();
+  await expectKioskDockHidden(page);
+  await revealKioskDock(page);
   await expect(page.getByRole("button", { name: "24時間" })).toBeVisible();
   await expect(page.getByRole("button", { name: "7日" })).toBeVisible();
   await expect(page.getByRole("button", { name: "30日" })).toBeVisible();
@@ -101,6 +122,7 @@ test.describe("kiosk navigation and controls", () => {
     await expect(page).toHaveURL(/\/kiosk$/);
     await expect(page.locator("main.kiosk")).toBeVisible();
 
+    await revealKioskDock(page);
     await page.getByRole("link", { name: "通常表示" }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(
@@ -110,6 +132,7 @@ test.describe("kiosk navigation and controls", () => {
 
   test("starts at 24 hours and switches to 7 and 30 days", async ({ page }) => {
     await page.goto("/kiosk");
+    await revealKioskDock(page);
     await expect(page.getByRole("button", { name: "24時間" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -131,10 +154,12 @@ test.describe("kiosk navigation and controls", () => {
 
   test("shares the persisted theme preference", async ({ page }) => {
     await page.goto("/kiosk");
+    await revealKioskDock(page);
     await page.getByRole("radio", { name: "ダーク" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await revealKioskDock(page);
     await page.getByRole("radio", { name: "自動" }).click();
   });
 
@@ -143,6 +168,7 @@ test.describe("kiosk navigation and controls", () => {
   }) => {
     await enableMockFullscreen(page);
     await page.goto("/kiosk");
+    await revealKioskDock(page);
     await expect
       .poll(() =>
         page.evaluate(
@@ -170,6 +196,19 @@ test.describe("kiosk navigation and controls", () => {
     await page.goto("/kiosk");
     await expect(page.getByRole("button", { name: "全画面" })).toHaveCount(0);
   });
+
+  test("reveals the dock only during interaction and closes it with Escape", async ({
+    page,
+  }) => {
+    await page.goto("/kiosk");
+    await expectKioskDockHidden(page);
+
+    await revealKioskDock(page);
+    await expect(page.getByRole("button", { name: "24時間" })).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expectKioskDockHidden(page);
+  });
 });
 
 test.describe("kiosk chart details", () => {
@@ -193,6 +232,7 @@ test.describe("kiosk chart details", () => {
         box.y + box.height * 0.55,
       );
     }
+    await expect(page.locator(".echarts-tooltip")).toBeHidden();
     await expect(
       page.getByRole("region", { name: "選択時刻の詳細" }),
     ).toBeVisible();
@@ -216,11 +256,17 @@ test.describe("kiosk chart details", () => {
     }) => {
       await setScenario(request, "normal");
       await page.goto("/kiosk");
+      await expectKioskDockHidden(page);
       const chart = page.getByRole("img", {
         name: /温度、湿度、Nature Remo認識エアコン設定温度/,
       });
       await expect(chart.locator("canvas")).toBeVisible({ timeout: 15_000 });
       await chart.tap({ position: { x: 200, y: 420 } });
+      await expect(kioskDock(page)).toHaveAttribute(
+        "data-menu-visible",
+        "true",
+      );
+      await expect(page.locator(".echarts-tooltip")).toBeHidden();
       const detail = page.getByRole("region", { name: "選択時刻の詳細" });
       await expect(detail).toBeVisible();
       await detail.getByRole("button", { name: "詳細を閉じる" }).click();
